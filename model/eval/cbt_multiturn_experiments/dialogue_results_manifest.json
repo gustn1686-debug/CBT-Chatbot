@@ -67,7 +67,7 @@
       "source": "outputs/prompt_ablation_3cases_20261006/original/sessions_unblinded.jsonl",
       "source_file_sha256": "fac57de7800c3007eee9275a8d1dc5c5232be9a6dca5736b6546955fbdc44d96",
       "path": "experiments/E04_prompt_ablation/results/original_base_R002.md",
-      "rendered_sha256": "edfe0b0fae3c3d2b92d79ac81805b7c50edbed5367e2e7f7f1795560016cd041",
+      "rendered_sha256": "6cb73a299625c218b92fec2557b7da81424b01cd3fd8fb40f216bb0c91551580",
       "utterances_preserved_verbatim": true
     },
     {
@@ -80,7 +80,7 @@
       "source": "outputs/prompt_ablation_3cases_20261006/original/sessions_unblinded.jsonl",
       "source_file_sha256": "fac57de7800c3007eee9275a8d1dc5c5232be9a6dca5736b6546955fbdc44d96",
       "path": "experiments/E04_prompt_ablation/results/original_tuned_R002.md",
-      "rendered_sha256": "8ce8ead3d1a8abe500d1c557c89d095acc6aeacba92ea0d15d23b47ae5387c39",
+      "rendered_sha256": "7c7594a96b092d790ac2d0d42850f394c4049ad936318187663bc6a6b7432b74",
       "utterances_preserved_verbatim": true
     },
     {
@@ -171,7 +171,7 @@
       "source": "outputs/gpt_luna_counselor_R002_20261006_203258/session.json",
       "source_file_sha256": "663bf6b341cc7c76363a5d017f66d873f2eec3f4549f60a813193ab5c0a3e1da",
       "path": "experiments/E05_gpt_counselor/results/gpt_luna_gpt_luna_R002.md",
-      "rendered_sha256": "a9a6ffb8c138bb2f9c7ce5506113f1df477aa6ed6faf89fb3db7f691ad48440f",
+      "rendered_sha256": "f203fd3645f850777c1ac3b5b1b1801383d9af2f65b4a6c461d4a5b802e4e8e5",
       "utterances_preserved_verbatim": true
     },
     {
@@ -197,7 +197,7 @@
       "source": "outputs/question_prompt_R002_20261007/sessions_unblinded.jsonl",
       "source_file_sha256": "56a630b33444009ac77d808421244a99b7a5a1ac3e5b988ea42a76e6bdd4af95",
       "path": "experiments/E06_question_rules/results/relaxed_tuned_R002.md",
-      "rendered_sha256": "3e33c78a7bc4f439e2470dfa8249c7ee036b93154f9b2915008496e18a62a74c",
+      "rendered_sha256": "b6cd1eedbc2d263e7d2b25963180fc82d7bd40c90a16841ffde00ac0985680f8",
       "utterances_preserved_verbatim": true
     },
     {
