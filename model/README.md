@@ -16,3 +16,9 @@ Qwen3-8B 기본 조건 → CBT 파인튜닝 → 질문 규칙 완화 → GPT 참
 - [실험 분류와 실제 대화 결과](eval/cbt_multiturn_experiments/docs/DIALOGUE_RESULTS.md): 실험당 한 행으로 정리한 목록과 CACTUS 합성 사례 R002·R004의 전체 대화 42개입니다.
 
 AIHub 실제 상담 발화, 전체 학습 데이터셋, 가중치와 인증정보는 포함하지 않습니다. 고정 내담자 발화 재생 실험이므로 후반의 호전 발화를 모델의 치료 효과로 해석하지 않으며, 정식 CTRS·전문가 평가 완료를 의미하지 않습니다.
+
+## 현재 Qwen3.5-27B DPO 연구
+
+[파이프라인·Sol 평가/생성 코드](dpo_pipeline/README.md) · [모델 주소 등록 파일](dpo_pipeline/model_release.json)
+
+DPO 학습·최종60프로필 비교·배포는 아직 미실행입니다. 최종평가후 가중치/어댑터와 서비스endpoint 주소를 등록합니다.
