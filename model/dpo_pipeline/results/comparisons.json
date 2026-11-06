@@ -1,0 +1,86 @@
+[
+  {
+    "source_session": "TRAINPILOT49__base",
+    "original_mean": 2.5,
+    "previous_3turn_mean": 2.8333333333333335,
+    "modified_mean": 3.1666666666666665,
+    "difference": 0.6666666666666665
+  },
+  {
+    "source_session": "TRAINPILOT54__base",
+    "original_mean": 3.0,
+    "previous_3turn_mean": 3.8333333333333335,
+    "modified_mean": 4.333333333333333,
+    "difference": 1.333333333333333
+  },
+  {
+    "source_session": "TRAINPILOT27__base",
+    "original_mean": 3.1666666666666665,
+    "previous_3turn_mean": 3.6666666666666665,
+    "modified_mean": 4.5,
+    "difference": 1.3333333333333335
+  },
+  {
+    "source_session": "TRAINPILOT05__base",
+    "original_mean": 3.5,
+    "previous_3turn_mean": 3.8333333333333335,
+    "modified_mean": 4.0,
+    "difference": 0.5
+  },
+  {
+    "source_session": "TRAINPILOT39__base",
+    "original_mean": 3.3333333333333335,
+    "previous_3turn_mean": 4.0,
+    "modified_mean": 4.333333333333333,
+    "difference": 0.9999999999999996
+  },
+  {
+    "source_session": "TRAINPILOT51__base",
+    "original_mean": 3.3333333333333335,
+    "previous_3turn_mean": 3.6666666666666665,
+    "modified_mean": 3.8333333333333335,
+    "difference": 0.5
+  },
+  {
+    "source_session": "TRAINPILOT06__base",
+    "original_mean": 3.5,
+    "previous_3turn_mean": 4.333333333333333,
+    "modified_mean": 4.333333333333333,
+    "difference": 0.833333333333333
+  },
+  {
+    "source_session": "TRAINPILOT12__base",
+    "original_mean": 3.6666666666666665,
+    "previous_3turn_mean": 4.166666666666667,
+    "modified_mean": 4.833333333333333,
+    "difference": 1.1666666666666665
+  },
+  {
+    "source_session": "TRAINPILOT32__base",
+    "original_mean": 3.3333333333333335,
+    "previous_3turn_mean": 3.8333333333333335,
+    "modified_mean": 3.8333333333333335,
+    "difference": 0.5
+  },
+  {
+    "source_session": "TRAINPILOT24__base",
+    "original_mean": 3.5,
+    "previous_3turn_mean": 4.333333333333333,
+    "modified_mean": 4.0,
+    "difference": 0.5
+  },
+  {
+    "source_session": "TRAINPILOT53__base",
+    "original_mean": 3.5,
+    "previous_3turn_mean": 4.5,
+    "modified_mean": 4.5,
+    "difference": 1.0
+  },
+  {
+    "source_session": "TRAINPILOT55__base",
+    "original_mean": 3.8333333333333335,
+    "previous_3turn_mean": 4.166666666666667,
+    "modified_mean": 4.333333333333333,
+    "difference": 0.49999999999999956
+  }
+]
