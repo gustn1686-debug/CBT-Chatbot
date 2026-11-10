@@ -1,0 +1,149 @@
+{
+  "type": "object",
+  "properties": {
+    "request_id": {
+      "type": "string"
+    },
+    "reviews": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "scene_id": {
+            "type": "string"
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "A",
+              "B",
+              "tie",
+              "both_inadequate",
+              "insufficient_context"
+            ]
+          },
+          "A_decision": {
+            "type": "string",
+            "enum": [
+              "appropriate",
+              "needs_improvement",
+              "insufficient_context"
+            ]
+          },
+          "B_decision": {
+            "type": "string",
+            "enum": [
+              "appropriate",
+              "needs_improvement",
+              "insufficient_context"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          },
+          "A_language": {
+            "type": "object",
+            "properties": {
+              "decision": {
+                "type": "string",
+                "enum": [
+                  "acceptable",
+                  "needs_revision",
+                  "uncertain"
+                ]
+              },
+              "quotes": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "reason": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "decision",
+              "quotes",
+              "reason"
+            ],
+            "additionalProperties": false
+          },
+          "B_language": {
+            "type": "object",
+            "properties": {
+              "decision": {
+                "type": "string",
+                "enum": [
+                  "acceptable",
+                  "needs_revision",
+                  "uncertain"
+                ]
+              },
+              "quotes": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "reason": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "decision",
+              "quotes",
+              "reason"
+            ],
+            "additionalProperties": false
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "source": {
+                  "type": "string",
+                  "enum": [
+                    "A",
+                    "B",
+                    "history",
+                    "provided_context"
+                  ]
+                },
+                "turn_id": {
+                  "type": "integer"
+                },
+                "quote": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "source",
+                "turn_id",
+                "quote"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "scene_id",
+          "verdict",
+          "A_decision",
+          "B_decision",
+          "reason",
+          "A_language",
+          "B_language",
+          "evidence"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "request_id",
+    "reviews"
+  ],
+  "additionalProperties": false
+}

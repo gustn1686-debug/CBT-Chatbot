@@ -1,0 +1,22 @@
+{
+  "gpt-6-luna": {
+    "api": "responses",
+    "model_id": "gpt-6-luna",
+    "reasoning_effort": "none",
+    "temperature": 0,
+    "max_output_tokens": 1000,
+    "input_usd_per_million": 0.1,
+    "cached_input_usd_per_million": 0.01,
+    "output_usd_per_million": 0.5
+  },
+  "gpt-6.1-sol": {
+    "api": "responses",
+    "model_id": "gpt-6.1-sol",
+    "reasoning_effort": "low",
+    "temperature": null,
+    "max_output_tokens": 2000,
+    "input_usd_per_million": 2.0,
+    "cached_input_usd_per_million": 0.1,
+    "output_usd_per_million": 10.0
+  }
+}

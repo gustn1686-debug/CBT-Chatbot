@@ -1,0 +1,8 @@
+# 번역 정제 CACTUS 전체본과 실험 산출물은 커밋하지 않음(팀 데이터 저장소에서 관리). 샘플만 커밋
+*.jsonl
+!cactus_ko_sample20.jsonl
+!perturbed_10.jsonl
+!eval_set_30.jsonl
+!perturbed_graded.jsonl
+!eval_set_40.jsonl
+!cold_extra.jsonl
