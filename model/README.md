@@ -10,6 +10,11 @@ Qwen3-8B 기본 조건 → CBT 파인튜닝 → 질문 규칙 완화 → GPT 참
 
 - 가중치/데이터 저장소: (추가 예정)
 
+## CTRS 평가 모델 (LLM-as-a-judge)
+
+- [eval/ctrs_judge/README.md](eval/ctrs_judge/README.md): CTRS 6개 항목으로 상담 대화를 채점하는 평가 파이프라인과 사용법
+- [검증 결과 보고](eval/ctrs_judge/docs/VALIDATION_REPORT.md): 판정 모델(gpt-6.1-sol)과 프롬프트 선정 근거, 한계
+
 ## 멀티턴 상담 반복 문제 · 실험 기록
 
 - [연구 흐름·코드·프롬프트](eval/cbt_multiturn_experiments/README.md)
