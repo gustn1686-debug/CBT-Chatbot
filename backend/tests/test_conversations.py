@@ -110,8 +110,11 @@ def test_crisis_skips_llm(client, monkeypatch):
     assert meta["crisis"] is True
     assert meta["crisis_resources"][0]["tel"] == "109"
     assert events[-1][0] == "done"
+    streamed = "".join(d["delta"] for e, d in events if e == "token")
+    assert "109" in streamed and len(streamed) < 100  # 시트와 중복되지 않는 짧은 문구
     detail = client.get(f"/api/v1/conversations/{cid}", headers=h).json()
     assert detail["messages"][1]["crisis"] is True
+    assert detail["messages"][1]["content"] == streamed
 
 
 def test_llm_error_event(client, monkeypatch):
