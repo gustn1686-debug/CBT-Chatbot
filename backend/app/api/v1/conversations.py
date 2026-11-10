@@ -1,6 +1,7 @@
 import base64
 import json
 from collections.abc import AsyncIterator
+from contextlib import aclosing
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, Response
@@ -247,12 +248,14 @@ async def send_message(
                 parts.append(CRISIS_MESSAGE)
                 yield _sse("token", {"delta": CRISIS_MESSAGE})
             else:
-                async for delta in llm.stream_reply(history, memory):
-                    parts.append(delta)
-                    yield _sse("token", {"delta": delta})
+                # 클라이언트가 끊겨도 모델 호출 자리(동시 호출 제한)가 바로 반납되도록 명시적으로 닫는다.
+                async with aclosing(llm.stream_reply(history, memory)) as stream:
+                    async for delta in stream:
+                        parts.append(delta)
+                        yield _sse("token", {"delta": delta})
         except llm.LLMError as exc:
             finish = "error"
-            yield _sse("error", {"code": "llm_unavailable", "message": str(exc)})
+            yield _sse("error", {"code": exc.code, "message": str(exc)})
         except Exception:  # noqa: BLE001 - 스트림 안에서는 에러 이벤트로 알려야 한다
             finish = "error"
             yield _sse(
