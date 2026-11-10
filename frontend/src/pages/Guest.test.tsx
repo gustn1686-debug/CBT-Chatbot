@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { mockOptions } from '../api/mockChat'
-import { resetMockRecords } from '../api/records'
+import { resetMockConversations } from '../api/mockChat'
 import { saveSession } from '../lib/session'
 import App from '../App'
 import { Chat } from './Chat'
@@ -39,7 +39,7 @@ function renderChat() {
 beforeEach(() => {
   localStorage.clear()
   sessionStorage.clear()
-  resetMockRecords()
+  resetMockConversations()
   mockOptions.delayMs = 0
 })
 
@@ -58,7 +58,7 @@ describe('앱 진입 흐름', () => {
 
   it('온보딩만 마치고 세션이 없으면 시작 선택으로 보낸다', () => {
     localStorage.setItem('synap.onboarded', '1')
-    open('/records')
+    open('/settings')
     expect(screen.getByRole('heading', { name: 'Synap과 함께 시작해요' })).toBeInTheDocument()
   })
 
@@ -74,7 +74,7 @@ describe('비회원 홈', () => {
   it('회원에게는 체험 안내를 보여주지 않는다', async () => {
     saveSession({ kind: 'user', email: 'a@b.co', nickname: 'a' })
     renderHome()
-    await screen.findByText('최근 기록')
+    await screen.findByText('지난 대화')
     expect(screen.queryByText('비회원으로 체험 중이에요')).not.toBeInTheDocument()
   })
 

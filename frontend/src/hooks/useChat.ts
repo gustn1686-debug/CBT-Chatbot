@@ -1,5 +1,5 @@
-import { useCallback, useRef, useState } from 'react'
-import { createConversation, streamMessage, type CrisisResource } from '../api/chat'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { createConversation, getConversation, streamMessage, type CrisisResource } from '../api/chat'
 
 export type ChatMessage = {
   id: string
@@ -19,15 +19,37 @@ const GREETING: ChatMessage = {
 
 export type CrisisState = { messageId: string; resources: CrisisResource[] } | null
 
-export function useChat(greeting?: string) {
-  const [messages, setMessages] = useState<ChatMessage[]>(() => [
-    greeting ? { ...GREETING, content: greeting } : GREETING,
-  ])
+// existingId 가 있으면 지난 대화를 불러와 이어서 한다. (홈의 대화 목록에서 들어온 경우)
+export function useChat(existingId?: string) {
+  const [messages, setMessages] = useState<ChatMessage[]>(() => (existingId ? [] : [GREETING]))
+  const [loading, setLoading] = useState(Boolean(existingId))
+  const [loadFailed, setLoadFailed] = useState(false)
   const [busy, setBusy] = useState(false)
   const [crisis, setCrisis] = useState<CrisisState>(null)
   const [signupRequired, setSignupRequired] = useState(false)
-  const conversationId = useRef<string | null>(null)
+  const conversationId = useRef<string | null>(existingId ?? null)
   const counter = useRef(0)
+
+  useEffect(() => {
+    if (!existingId) return
+    let cancelled = false
+    getConversation(existingId)
+      .then((detail) => {
+        if (cancelled) return
+        setMessages(
+          detail.messages.map((m) => ({ id: `s-${m.id}`, role: m.role, content: m.content, status: 'sent' as const })),
+        )
+        setLoading(false)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setLoadFailed(true)
+        setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [existingId])
 
   const nextId = (prefix: string) => `${prefix}-${++counter.current}`
 
@@ -90,5 +112,5 @@ export function useChat(greeting?: string) {
     [messages, busy, request],
   )
 
-  return { messages, busy, crisis, signupRequired, send, retry }
+  return { messages, busy, crisis, signupRequired, loading, loadFailed, conversationId, send, retry }
 }

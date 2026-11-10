@@ -95,7 +95,7 @@ def test_chat_stream_and_persist(client):
 def test_crisis_skips_llm(client, monkeypatch):
     from app.services import llm
 
-    async def boom(_):
+    async def boom(*_):
         raise AssertionError("위기 시에는 LLM 을 호출하면 안 됨")
         yield
 
@@ -120,7 +120,7 @@ def test_crisis_skips_llm(client, monkeypatch):
 def test_llm_error_event(client, monkeypatch):
     from app.services import llm
 
-    async def failing(_):
+    async def failing(*_):
         raise llm.LLMError("모델 서버에 연결하지 못했습니다.")
         yield
 

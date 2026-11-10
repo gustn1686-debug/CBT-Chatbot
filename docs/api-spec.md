@@ -133,6 +133,20 @@
 ### `DELETE /conversations/{id}` — 대화 삭제
 `204 No Content`
 
+### `DELETE /conversations` — 내 대화 전체 삭제
+설정의 "전체 기록 삭제". `204 No Content`. 회기 요약은 대화와 같은 행이라 함께 지워진다.
+
+### `POST /conversations/{id}/end` — 대화 종료
+`204 No Content`. 서버가 이 대화를 **요약해 내부에 저장**한다 (응답은 요약이 끝나기를 기다리지 않는다).
+- 요약은 사용자에게 노출하지 않는다. `GET /conversations*` 응답에도 포함되지 않는다.
+- 종료 없이 나간 대화는, 다음에 `POST /conversations`로 새 대화를 시작할 때 서버가 뒤에서 따라잡아 요약한다.
+- 종료한 대화도 `POST /conversations/{id}/messages`로 이어서 할 수 있다. 이어가면 요약은 낡은 것이 되어 다음 기회에 다시 만든다.
+
+### 회기 요약과 "기억"
+- 새 대화에서 메시지를 보낼 때, 서버는 사용자의 **이전 대화 요약(최근 3개, 현재 대화 제외)** 을 모델의 시스템 프롬프트에 붙인다. 위기 감지 시에는 LLM을 부르지 않으므로 붙이지 않는다.
+- 요약 항목: 상황, 처음 떠오른 생각, 감정, 대화에서 확인한 점, 대안적 생각, 다음 행동 (`conversations.summary` JSON).
+- 홈의 "지난 대화" 목록은 `GET /conversations`를 그대로 쓰고, 누르면 그 대화를 이어서 한다 (`GET /conversations/{id}` 후 `POST .../messages`).
+
 ---
 
 ## 5. 채팅 (SSE 스트리밍)
@@ -181,7 +195,7 @@ data: {"message_id":"m_2","crisis":true,"signup_required":false,
 ## 6. 후속 범위 (명세 추후 확정)
 
 - 감정 체크인: `POST /checkins`, `GET /checkins`
-- 생각 기록(인지 왜곡 태깅): `POST /thought-records`, `GET /thought-records`
+- ~~생각 기록(`/thought-records`)~~: 기록 목록·상세 화면을 두지 않기로 했다. 같은 용도의 회기 요약은 위 "회기 요약과 기억"처럼 서버 내부에만 저장한다.
 
 ---
 

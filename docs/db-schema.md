@@ -91,7 +91,8 @@ erDiagram
 | status | text | NOT NULL, 기본 `active` | `active` / `closed` |
 | plan | JSON | NULL 허용 | 하네스 `CounselingPlan` (technique, focus, steps, uncertainties) |
 | state | JSON | NULL 허용 | 하네스 `SessionState` (stage, confirmed_facts, answered_questions, rejected_hypotheses, client_feedback, next_action, client_requested_stop) |
-| summary | text | NULL 허용 | 다음 회기에 넘기는 누적 요약 (`미정`: 모델 쪽 방향 확정 후) |
+| summary | text | NULL 허용 | 회기 요약(JSON 문자열: situation, first_thought, emotions[], findings, alternative, next_action). 다음 대화에서 모델에게 "기억"으로 넘기며 사용자에게는 보여주지 않는다 |
+| summary_seq | int | NULL 허용 | 요약이 반영한 마지막 메시지 seq. 이어서 대화하면 `summary_seq < 마지막 seq` 가 되어 다시 요약한다 |
 | created_at / updated_at | timestamptz | NOT NULL | |
 
 - UNIQUE(`user_id`, `session_no`)

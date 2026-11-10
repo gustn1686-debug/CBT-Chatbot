@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
+import { endConversation } from '../api/chat'
 import { ChatInput } from '../components/chat/ChatInput'
 import { MessageBubble } from '../components/chat/MessageBubble'
 import { OfflineBanner } from '../components/chat/OfflineBanner'
@@ -10,19 +11,11 @@ import { useOnlineStatus } from '../hooks/useOnlineStatus'
 import { getSession } from '../lib/session'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
-// 기록 상세의 "이 기록에서 대화 이어가기"에서 넘어오면 그 기록을 첫 인사에 반영한다.
-function greetingFor(state: unknown): string | undefined {
-  const title = (state as { record?: { title?: unknown } } | null)?.record?.title
-  return typeof title === 'string'
-    ? `지난번에 '${title}' 이야기를 나눴어요. 오늘은 이어서 어떤 이야기를 해볼까요?`
-    : undefined
-}
-
 export function Chat() {
   useDocumentTitle('대화')
   const navigate = useNavigate()
-  const location = useLocation()
-  const { messages, busy, crisis, send, retry } = useChat(greetingFor(location.state))
+  const { id } = useParams<{ id: string }>()
+  const { messages, busy, crisis, loading, loadFailed, conversationId, send, retry } = useChat(id)
   const [dismissedCrisis, setDismissedCrisis] = useState<string | null>(null)
   const [confirmingEnd, setConfirmingEnd] = useState(false)
   const [offeringSave, setOfferingSave] = useState(false)
@@ -33,7 +26,16 @@ export function Chat() {
     bottomRef.current?.scrollIntoView?.({ block: 'end' })
   }, [messages])
 
-  const leave = () => navigate('/', { replace: true })
+  // 나갈 때 서버가 이 회기를 요약해 두도록 알린다. 실패해도 나가는 데는 영향이 없다.
+  // (종료 없이 나간 대화는 다음 새 대화를 시작할 때 서버가 따라잡아 요약한다)
+  const leave = () => {
+    if (conversationId.current) void endConversation(conversationId.current).catch(() => {})
+    navigate('/', { replace: true })
+  }
+
+  useEffect(() => {
+    if (loadFailed) navigate('/', { replace: true })
+  }, [loadFailed, navigate])
 
   // 비회원이 실제로 이야기를 나눴다면, 나가기 전에 기록 보관(가입)을 한 번 안내한다.
   const endChat = () => {
@@ -43,10 +45,13 @@ export function Chat() {
     else leave()
   }
 
-  // 답변이 다 도착했을 때만 한 번 읽어 준다. (글자가 늘어날 때마다 읽으면 알아듣기 어렵다)
+  // 답변이 다 도착했을 때만 한 번 읽어 준다. (불러온 지난 메시지는 읽지 않는다)
+  // (글자가 늘어날 때마다 읽으면 알아듣기 어렵다)
   const last = messages[messages.length - 1]
   const announcement =
-    last?.role === 'assistant' && last.status === 'sent' && last.id !== 'greeting' ? last.content : ''
+    last?.role === 'assistant' && last.status === 'sent' && last.id !== 'greeting' && !last.id.startsWith('s-')
+      ? last.content
+      : ''
 
   return (
     <div className="flex h-dvh flex-col">
@@ -65,7 +70,7 @@ export function Chat() {
         </button>
       </header>
 
-      <main className="flex flex-1 flex-col gap-3.5 overflow-y-auto px-4 pt-1.5 pb-3">
+      <main aria-busy={loading} className="flex flex-1 flex-col gap-3.5 overflow-y-auto px-4 pt-1.5 pb-3">
         {messages.map((m) => (
           <MessageBubble
             key={m.id}

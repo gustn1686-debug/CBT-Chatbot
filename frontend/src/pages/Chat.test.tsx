@@ -1,14 +1,16 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { mockOptions } from '../api/mockChat'
+import { getConversation } from '../api/chat'
+import { mockOptions, resetMockConversations } from '../api/mockChat'
 import { Chat } from './Chat'
 
-function renderChat(state?: unknown) {
+function renderChat(path = '/chat') {
   render(
-    <MemoryRouter initialEntries={[{ pathname: '/chat', state }]}>
+    <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/chat" element={<Chat />} />
+        <Route path="/chat/:id" element={<Chat />} />
         <Route path="/" element={<p>홈</p>} />
       </Routes>
     </MemoryRouter>,
@@ -67,12 +69,24 @@ describe('Chat', () => {
     expect(screen.queryByRole('dialog', { name: '지금 많이 힘드신 것 같아요' })).not.toBeInTheDocument()
   })
 
-  it('기록에서 이어가면 그 기록을 언급하는 첫 인사를 보여준다', () => {
-    renderChat({ record: { id: 'r-4', title: '발표 자료 오타 관련 생각 정리' } })
-    expect(
-      screen.getByText("지난번에 '발표 자료 오타 관련 생각 정리' 이야기를 나눴어요. 오늘은 이어서 어떤 이야기를 해볼까요?"),
-    ).toBeInTheDocument()
+  it('지난 대화를 열면 이전 메시지를 불러오고, 이어서 보낼 수 있다', async () => {
+    resetMockConversations()
+    const user = renderChat('/chat/c-3')
+    expect(await screen.findByText('발표 자료 오타 때문에 마음이 불편해요')).toBeInTheDocument()
+    expect(screen.getByText('그런 생각이 들 때 마음이 어떠셨어요?')).toBeInTheDocument()
     expect(screen.queryByText('안녕하세요. 오늘은 어떤 얘기를 나눠볼까요?')).not.toBeInTheDocument()
+
+    await user.type(screen.getByLabelText('메시지 입력'), '조금 나아졌어요')
+    await user.click(screen.getByRole('button', { name: '보내기' }))
+    expect(screen.getByText('조금 나아졌어요')).toBeInTheDocument()
+    // 새 답변이 도착해 같은 대화에 이어서 저장된다
+    await waitFor(async () => expect((await getConversation('c-3')).messages).toHaveLength(4))
+  })
+
+  it('없는 대화를 열면 홈으로 돌아간다', async () => {
+    resetMockConversations()
+    renderChat('/chat/nope')
+    expect(await screen.findByText('홈')).toBeInTheDocument()
   })
 
   it('입력이 비어 있으면 보낼 수 없다', () => {

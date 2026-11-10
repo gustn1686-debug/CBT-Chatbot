@@ -2,7 +2,6 @@ import { NavLink } from 'react-router-dom'
 
 const tabs = [
   { to: '/', label: '홈', icon: '🏠' },
-  { to: '/records', label: '기록', icon: '📋' },
   { to: '/settings', label: '설정', icon: '⚙️' },
 ]
 

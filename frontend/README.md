@@ -34,11 +34,11 @@ npm run typecheck  # tsc -b
 | 전송 실패·다시 시도 | 채팅 메시지에 `[실패]`를 넣는다 (처음 한 번만 실패) |
 | 로그인 실패 | 비밀번호를 `wrongpass1`로 입력 |
 | 이미 가입된 이메일 | 가입 이메일을 `taken@example.com`으로 입력 |
-| 기록이 없는 상태 | 주소 끝에 `?mock=empty` |
+| 대화가 없는 상태 | 주소 끝에 `?mock=empty` |
 | 무료 대화 소진(비회원) | 개발자 도구에서 `localStorage['synap.mock.sessionCount'] = '3'` |
 | 네트워크 오류 | 개발자 도구 Network → Offline |
 
-실제 API는 `src/api/{auth,chat}.ts`에서 호출하고, 생각 기록 API(`records.ts`)는 명세가 확정되기 전이라 목업만 있다.
+실제 API는 `src/api/{auth,chat}.ts`에서 호출한다. (기록 목록·상세 화면은 없다. 회기 요약은 서버가 내부적으로만 저장해 다음 대화에 기억으로 쓴다.)
 
 ## 폴더
 

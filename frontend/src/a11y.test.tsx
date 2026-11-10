@@ -2,13 +2,10 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { mockOptions } from './api/mockChat'
-import { resetMockRecords } from './api/records'
+import { mockOptions, resetMockConversations } from './api/mockChat'
 import { ConfirmModal } from './components/ConfirmModal'
 import { Chat } from './pages/Chat'
 import { Login } from './pages/Login'
-import { RecordDetail } from './pages/RecordDetail'
-import { Records } from './pages/Records'
 import { Signup } from './pages/Signup'
 import { Start } from './pages/Start'
 
@@ -61,7 +58,7 @@ describe('대화상자 포커스', () => {
 })
 
 describe('화면 제목과 랜드마크', () => {
-  beforeEach(() => resetMockRecords())
+  beforeEach(() => resetMockConversations())
 
   const at = (path: string) =>
     render(
@@ -70,8 +67,6 @@ describe('화면 제목과 랜드마크', () => {
           <Route path="/start" element={<Start />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
-          <Route path="/records" element={<Records />} />
-          <Route path="/records/:id" element={<RecordDetail />} />
           <Route path="/chat" element={<Chat />} />
         </Routes>
       </MemoryRouter>,
@@ -81,18 +76,10 @@ describe('화면 제목과 랜드마크', () => {
     ['/start', '시작하기 · Synap'],
     ['/login', '로그인 · Synap'],
     ['/signup', '회원가입 · Synap'],
-    ['/records', '내 기록 · Synap'],
     ['/chat', '대화 · Synap'],
   ])('%s 는 탭 제목이 "%s" 이다', (path, title) => {
     at(path)
     expect(document.title).toBe(title)
-  })
-
-  it('기록 상세의 탭 제목은 기록 제목이고, 보이지 않는 1단계 제목도 같다', async () => {
-    at('/records/r-4')
-    const h1 = await screen.findByRole('heading', { level: 1, name: '발표 자료 오타 관련 생각 정리' })
-    expect(h1).toBeInTheDocument()
-    expect(document.title).toBe('발표 자료 오타 관련 생각 정리 · Synap')
   })
 
   it.each(['/start', '/login', '/signup'])('%s 에는 main 랜드마크가 하나 있다', (path) => {

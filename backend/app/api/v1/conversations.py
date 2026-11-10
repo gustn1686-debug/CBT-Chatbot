@@ -3,7 +3,7 @@ import json
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, Response
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
@@ -15,7 +15,7 @@ from app.core.config import get_settings
 from app.core.errors import AppError
 from app.db import SessionLocal, get_db
 from app.models import Conversation, Message, User
-from app.services import llm
+from app.services import llm, summary
 from app.services.crisis import CRISIS_MESSAGE, CRISIS_RESOURCES, detect_crisis, log_crisis_event
 
 router = APIRouter(prefix="/conversations", tags=["conversations"])
@@ -73,6 +73,7 @@ def _signup_required(db: Session, user: User) -> bool:
 
 @router.post("", status_code=201)
 def create_conversation(
+    background: BackgroundTasks,
     body: CreateConversation | None = None,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -90,6 +91,8 @@ def create_conversation(
         db.rollback()
         raise AppError(409, "conflict", "잠시 후 다시 시도해 주세요.") from None
     db.refresh(c)
+    # 새 대화를 시작하면, 요약이 없는 이전 대화를 뒤에서 요약해 둔다 (첫 메시지 전에 대부분 끝난다).
+    background.add_task(summary.summarize_stale, user.id, c.id)
     return _summary(db, c)
 
 
@@ -157,6 +160,30 @@ def get_conversation(
     return {"id": c.id, "title": c.title, "messages": messages}
 
 
+@router.delete("", status_code=204)
+def delete_all_conversations(
+    user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> Response:
+    """내 대화 전체 삭제 (설정의 '전체 기록 삭제'). 요약도 같은 행이라 함께 지워진다."""
+    for c in db.scalars(select(Conversation).where(Conversation.user_id == user.id)).all():
+        db.delete(c)
+    db.commit()
+    return Response(status_code=204)
+
+
+@router.post("/{conversation_id}/end", status_code=204)
+def end_conversation(
+    conversation_id: str,
+    background: BackgroundTasks,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Response:
+    """대화 종료. 다음 대화가 기억할 수 있도록 이 대화를 요약해 둔다 (응답은 기다리지 않는다)."""
+    c = _get_owned(db, user, conversation_id)
+    background.add_task(summary.summarize_conversation, c.id)
+    return Response(status_code=204)
+
+
 @router.delete("/{conversation_id}", status_code=204)
 def delete_conversation(
     conversation_id: str,
@@ -205,6 +232,7 @@ async def send_message(
     db.commit()
     assistant_id = assistant.id
     history = [*previous, {"role": "user", "content": content}]
+    memory = None if crisis else summary.build_memory(db, user.id, c.id)
 
     async def events() -> AsyncIterator[str]:
         meta = {"message_id": assistant_id, "crisis": crisis, "signup_required": signup_required}
@@ -219,7 +247,7 @@ async def send_message(
                 parts.append(CRISIS_MESSAGE)
                 yield _sse("token", {"delta": CRISIS_MESSAGE})
             else:
-                async for delta in llm.stream_reply(history):
+                async for delta in llm.stream_reply(history, memory):
                     parts.append(delta)
                     yield _sse("token", {"delta": delta})
         except llm.LLMError as exc:
