@@ -150,3 +150,45 @@ def test_signup_required_after_limit(client):
         cid = client.post("/api/v1/conversations", headers=h).json()["id"]
     res = client.post(f"/api/v1/conversations/{cid}/messages", json={"content": "안녕"}, headers=h)
     assert _parse_sse(res.text)[0][1]["signup_required"] is True
+
+
+def _stream_events(client, h, cid, text="안녕"):
+    res = client.post(f"/api/v1/conversations/{cid}/messages", json={"content": text}, headers=h)
+    return _parse_sse(res.text)
+
+
+def test_busy_is_reported_as_error_event(client, monkeypatch):
+    from app.services import llm
+
+    async def busy(*_):
+        raise llm.LLMBusy("지금 이용하는 분이 많아요. 잠시 후 다시 시도해 주세요.")
+        yield
+
+    monkeypatch.setattr(llm, "stream_reply", busy)
+    h = _guest(client)
+    cid = client.post("/api/v1/conversations", headers=h).json()["id"]
+    events = _stream_events(client, h, cid)
+    assert [e for e, _ in events] == ["meta", "error"]
+    assert events[1][1]["code"] == "llm_busy"
+    assert "잠시 후" in events[1][1]["message"]
+    detail = client.get(f"/api/v1/conversations/{cid}", headers=h).json()
+    assert [m["role"] for m in detail["messages"]] == [
+        "user"
+    ]  # 사용자 메시지는 남고 빈 응답은 없음
+
+
+def test_timeout_after_partial_reply_keeps_partial(client, monkeypatch):
+    from app.services import llm
+
+    async def partial(*_):
+        yield "말씀하신 "
+        raise llm.LLMTimeout("모델 응답이 너무 오래 걸려요.")
+
+    monkeypatch.setattr(llm, "stream_reply", partial)
+    h = _guest(client)
+    cid = client.post("/api/v1/conversations", headers=h).json()["id"]
+    events = _stream_events(client, h, cid)
+    assert [e for e, _ in events] == ["meta", "token", "error"]
+    assert events[2][1]["code"] == "llm_timeout"
+    detail = client.get(f"/api/v1/conversations/{cid}", headers=h).json()
+    assert detail["messages"][1]["content"] == "말씀하신 "  # 받은 만큼은 저장
