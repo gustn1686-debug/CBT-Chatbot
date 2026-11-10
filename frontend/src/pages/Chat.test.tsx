@@ -46,6 +46,27 @@ describe('Chat', () => {
     expect(screen.queryByRole('button', { name: /전송 실패/ })).not.toBeInTheDocument()
   })
 
+  it('모델 서버가 몰려 거절되면 "이용하는 분이 많아요" 안내를 보여주고, 다시 시도하면 응답을 받는다', async () => {
+    const user = renderChat()
+    await user.type(screen.getByLabelText('메시지 입력'), '[[혼잡] 잠이 안 와요')
+    await user.click(screen.getByRole('button', { name: '보내기' }))
+
+    const retry = await screen.findByRole('button', { name: /지금 이용하는 분이 많아요/ })
+    expect(retry).toHaveTextContent('잠시 후 다시 시도')
+    expect(screen.queryByRole('button', { name: /전송 실패/ })).not.toBeInTheDocument()
+
+    await user.click(retry)
+    expect((await screen.findAllByText(/마음이 어떠셨어요|이야기해 주실|떠올려 볼까요/)).length).toBeGreaterThan(0)
+    expect(screen.queryByRole('button', { name: /지금 이용하는 분이 많아요/ })).not.toBeInTheDocument()
+  })
+
+  it('응답이 너무 늦으면 그에 맞는 안내를 보여준다', async () => {
+    const user = renderChat()
+    await user.type(screen.getByLabelText('메시지 입력'), '[[지연] 요즘 힘들어요')
+    await user.click(screen.getByRole('button', { name: '보내기' }))
+    expect(await screen.findByRole('button', { name: /응답이 늦어지고 있어요/ })).toBeInTheDocument()
+  })
+
   it('대화 종료는 확인 모달을 거치고, 취소하면 대화가 유지된다', async () => {
     const user = renderChat()
     await user.click(screen.getByRole('button', { name: '대화 종료' }))

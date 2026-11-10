@@ -76,6 +76,7 @@ export function Chat() {
             key={m.id}
             role={m.role}
             failed={m.status === 'failed'}
+            failReason={m.failReason}
             onRetry={() => retry(m.id)}
           >
             {m.content}
