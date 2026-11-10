@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createConversation, getConversation, streamMessage, type CrisisResource } from '../api/chat'
+import { ApiError } from '../api/client'
 
 export type ChatMessage = {
   id: string
@@ -7,6 +8,18 @@ export type ChatMessage = {
   content: string
   // user: 전송 실패 여부 / assistant: 응답이 아직 오는 중인지
   status: 'sent' | 'failed' | 'streaming'
+  // 전송이 실패했다면 이유. 서버가 모델 서버를 보호하려고 거절했거나(busy) 응답이 너무 늦은 경우(timeout)는
+  // 일반 오류와 다른 안내를 보여준다. (백엔드 SSE error 코드 llm_busy / llm_timeout)
+  failReason?: FailReason
+}
+
+export type FailReason = 'busy' | 'timeout'
+
+const failReasonOf = (error: unknown): FailReason | undefined => {
+  if (!(error instanceof ApiError)) return undefined
+  if (error.code === 'llm_busy') return 'busy'
+  if (error.code === 'llm_timeout') return 'timeout'
+  return undefined
 }
 
 // Figma: HiFi_3_채팅 첫 말풍선
@@ -75,16 +88,23 @@ export function useChat(existingId?: string) {
         } else if (event.type === 'done') {
           update(replyId, { status: 'sent' })
         } else {
-          throw new Error(event.message)
+          throw new ApiError(event.code, event.message)
         }
       }
       update(replyId, { status: 'sent' })
-    } catch {
+    } catch (error) {
+      const failReason = failReasonOf(error)
       // 응답이 하나도 오지 않았으면 빈 말풍선을 치우고, 받은 만큼은 남긴다.
       setMessages((list) =>
         list
           .filter((m) => !(m.id === replyId && m.content === ''))
-          .map((m) => (m.id === userId ? { ...m, status: 'failed' } : m.id === replyId ? { ...m, status: 'sent' } : m)),
+          .map((m) =>
+            m.id === userId
+              ? { ...m, status: 'failed', failReason }
+              : m.id === replyId
+                ? { ...m, status: 'sent' }
+                : m,
+          ),
       )
     } finally {
       setBusy(false)
@@ -106,7 +126,7 @@ export function useChat(existingId?: string) {
     (id: string) => {
       const target = messages.find((m) => m.id === id)
       if (!target || busy) return
-      update(id, { status: 'sent' })
+      update(id, { status: 'sent', failReason: undefined })
       void request(id, target.content)
     },
     [messages, busy, request],

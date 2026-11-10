@@ -7,6 +7,8 @@ import { mockBumpSession, mockUsage } from './mockAuth'
 
 const CRISIS_KEYWORDS = ['죽고 싶', '죽고싶', '자살']
 const FAIL_TRIGGER = '[실패]' // 전송 실패 UI 확인용: 이 문구가 든 메시지는 처음 한 번만 실패한다
+const BUSY_TRIGGER = '[혼잡]' // 모델 서버가 몰린 경우(llm_busy) 확인용. 처음 한 번만 거절한다
+const TIMEOUT_TRIGGER = '[지연]' // 응답이 너무 늦은 경우(llm_timeout) 확인용. 처음 한 번만
 
 const replies = [
   '그런 생각이 들 때 마음이 어떠셨어요?',
@@ -91,6 +93,17 @@ export async function mockCreateConversation(): Promise<string> {
 
 export async function* mockStreamMessage(conversationId: string, content: string): AsyncGenerator<ChatEvent> {
   await sleep(mockOptions.delayMs * 4)
+  const serverError = content.includes(BUSY_TRIGGER)
+    ? { code: 'llm_busy', message: '지금 이용하는 분이 많아요. 잠시 후 다시 시도해 주세요.' }
+    : content.includes(TIMEOUT_TRIGGER)
+      ? { code: 'llm_timeout', message: '모델 응답이 너무 오래 걸려요. 잠시 후 다시 시도해 주세요.' }
+      : null
+  if (serverError && !failedOnce.has(content)) {
+    failedOnce.add(content)
+    yield { type: 'meta', messageId: `m-${Date.now()}`, crisis: false, signupRequired: false, crisisResources: [] }
+    yield { type: 'error', ...serverError }
+    return
+  }
   if (content.includes(FAIL_TRIGGER) && !failedOnce.has(content)) {
     failedOnce.add(content)
     throw new Error('mock network error')
