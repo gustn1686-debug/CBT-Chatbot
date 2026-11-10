@@ -15,6 +15,12 @@ class Settings(BaseSettings):
     guest_session_limit: int = 3
     cors_origins: str = "http://localhost:5173"
 
+    # 보관 기간(일). docs/db-schema.md §5
+    guest_retention_days: int = 30
+    member_retention_days: int = 60
+    crisis_retention_days: int = 180
+    crisis_log_secret: str = "change-me"
+
     llm_mode: str = "mock"  # mock | http
     llm_base_url: str = ""
     llm_api_key: str = ""

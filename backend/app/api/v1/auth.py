@@ -1,4 +1,5 @@
 import re
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends
 from fastapi.security import HTTPAuthorizationCredentials
@@ -102,6 +103,8 @@ def _upgrade_guest(db: Session, guest: User, body: RegisterBody) -> dict:
     guest.email = body.email
     guest.password_hash = hash_password(body.password)
     guest.nickname = body.nickname
+    guest.upgraded_at = datetime.now(UTC)
+    guest.last_active_at = guest.upgraded_at
     _commit_or_conflict(db)
     return _auth_response(guest)
 
@@ -147,4 +150,6 @@ def login(body: LoginBody, db: Session = Depends(get_db)) -> dict:
     user = db.scalar(select(User).where(User.email == body.email))
     if user is None or user.is_guest or not verify_password(body.password, user.password_hash):
         raise AppError(401, "auth_invalid_credentials", "이메일 또는 비밀번호가 맞지 않아요.")
+    user.last_active_at = datetime.now(UTC)
+    db.commit()
     return _auth_response(user)

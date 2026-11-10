@@ -30,3 +30,9 @@ app/
 ├── core/config.py # .env 설정
 └── api/v1/        # 엔드포인트 (docs/api-spec.md 기준)
 ```
+
+## 보관 기간 정리 (하루 1회 실행)
+```bash
+cd backend && python -m app.services.retention
+```
+비회원(마지막 활동 후 `GUEST_RETENTION_DAYS`), 회원 대화(`MEMBER_RETENTION_DAYS`), 위기 기록(`CRISIS_RETENTION_DAYS`) 중 기간이 지난 데이터를 지운다. 기준은 `docs/db-schema.md` §5.

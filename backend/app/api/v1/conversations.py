@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, Query, Response
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
@@ -15,7 +16,7 @@ from app.core.errors import AppError
 from app.db import SessionLocal, get_db
 from app.models import Conversation, Message, User
 from app.services import llm
-from app.services.crisis import CRISIS_MESSAGE, CRISIS_RESOURCES, detect_crisis
+from app.services.crisis import CRISIS_MESSAGE, CRISIS_RESOURCES, detect_crisis, log_crisis_event
 
 router = APIRouter(prefix="/conversations", tags=["conversations"])
 
@@ -76,9 +77,18 @@ def create_conversation(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    c = Conversation(user_id=user.id, title=body.title if body else None)
+    last_no = db.scalar(
+        select(func.max(Conversation.session_no)).where(Conversation.user_id == user.id)
+    )
+    c = Conversation(
+        user_id=user.id, session_no=(last_no or 0) + 1, title=body.title if body else None
+    )
     db.add(c)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:  # 같은 사용자가 동시에 만들어 회기 번호가 겹친 경우
+        db.rollback()
+        raise AppError(409, "conflict", "잠시 후 다시 시도해 주세요.") from None
     db.refresh(c)
     return _summary(db, c)
 
@@ -180,12 +190,17 @@ async def send_message(
 
     # 이전 대화 + 이번 사용자 메시지 (스트림 시작 전에 사용자 메시지를 저장)
     previous = [{"role": m.role, "content": m.content} for m in c.messages][-HISTORY_LIMIT:]
-    db.add(Message(conversation_id=c.id, role="user", content=content))
+    seq = (db.scalar(select(func.max(Message.seq)).where(Message.conversation_id == c.id)) or 0) + 1
+    db.add(Message(conversation_id=c.id, seq=seq, role="user", content=content))
     if c.title is None:
         c.title = content[:30]
+    if crisis:
+        log_crisis_event(db, user)
     db.commit()
 
-    assistant = Message(conversation_id=c.id, role="assistant", content="", crisis=crisis)
+    assistant = Message(
+        conversation_id=c.id, seq=seq + 1, role="assistant", content="", crisis=crisis
+    )
     db.add(assistant)
     db.commit()
     assistant_id = assistant.id

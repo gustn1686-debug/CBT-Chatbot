@@ -3,7 +3,14 @@
 키워드 목록과 문구/연락처는 임시안이며, 팀 합의(docs/api-spec.md §7-4) 후 교체한다.
 """
 
+import hashlib
+import hmac
 import re
+
+from sqlalchemy.orm import Session
+
+from app.core.config import get_settings
+from app.models import CrisisEvent, User
 
 CRISIS_KEYWORDS = (
     "죽고 싶",
@@ -24,6 +31,9 @@ CRISIS_KEYWORDS = (
 # 띄어쓰기 차이("죽고  싶")를 흡수하기 위해 공백을 제거한 뒤 비교한다.
 _NORMALIZED = tuple(re.sub(r"\s+", "", k) for k in CRISIS_KEYWORDS)
 
+CRISIS_CATEGORY = "self_harm"
+KEYWORD_VERSION = "v1"  # 키워드 목록을 바꾸면 올린다 (필터 개선 추적용)
+
 CRISIS_RESOURCES = [
     {"name": "자살예방 상담전화", "tel": "109"},
     {"name": "정신건강 위기상담전화", "tel": "1577-0199"},
@@ -40,3 +50,21 @@ CRISIS_MESSAGE = (
 def detect_crisis(text: str) -> bool:
     compact = re.sub(r"\s+", "", text)
     return any(k in compact for k in _NORMALIZED)
+
+
+def anon_code(user_id: str) -> str:
+    """되돌릴 수 없는 가명 코드. 비밀키가 바뀌면 이전 코드와 이어지지 않는다."""
+    key = get_settings().crisis_log_secret.encode()
+    return hmac.new(key, user_id.encode(), hashlib.sha256).hexdigest()[:16]
+
+
+def log_crisis_event(db: Session, user: User) -> None:
+    """통계용 비식별 기록. 사용자/대화 ID, 메시지 내용, 키워드 원문은 저장하지 않는다."""
+    db.add(
+        CrisisEvent(
+            anon_code=anon_code(user.id),
+            category=CRISIS_CATEGORY,
+            keyword_version=KEYWORD_VERSION,
+            user_kind="guest" if user.is_guest else "member",
+        )
+    )
