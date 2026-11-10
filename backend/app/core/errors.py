@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 
@@ -16,4 +17,15 @@ def register_error_handlers(app: FastAPI) -> None:
     async def _app_error(_: Request, exc: AppError) -> JSONResponse:
         return JSONResponse(
             status_code=exc.status_code, content={"code": exc.code, "message": exc.message}
+        )
+
+    @app.exception_handler(RequestValidationError)
+    async def _validation_error(_: Request, exc: RequestValidationError) -> JSONResponse:
+        # 명세 포맷으로 통일. 첫 번째 오류의 메시지를 사람이 읽을 수 있게 내려준다.
+        first = exc.errors()[0] if exc.errors() else {}
+        message = str(first.get("msg", "요청 값이 올바르지 않습니다.")).removeprefix(
+            "Value error, "
+        )
+        return JSONResponse(
+            status_code=422, content={"code": "validation_error", "message": message}
         )
