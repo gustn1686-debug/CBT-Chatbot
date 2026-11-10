@@ -1,0 +1,16 @@
+{
+  "status": "not_trained_not_evaluated_not_deployed",
+  "base_model": "Qwen/Qwen3.5-27B",
+  "base_revision": null,
+  "tokenizer_revision": null,
+  "dpo_adapter_url": null,
+  "dpo_adapter_revision": null,
+  "merged_weights_url": null,
+  "weights_sha256": null,
+  "training_manifest_url": null,
+  "final_ctrs_report_url": null,
+  "inference_endpoint_url": null,
+  "served_model_name": null,
+  "counselor_prompt_sha256": null,
+  "inference_precision": null
+}

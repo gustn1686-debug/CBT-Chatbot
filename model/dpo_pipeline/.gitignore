@@ -1,0 +1,7 @@
+runs/
+.env
+.env.*
+__pycache__/
+*.py[cod]
+*.gguf
+*.safetensors

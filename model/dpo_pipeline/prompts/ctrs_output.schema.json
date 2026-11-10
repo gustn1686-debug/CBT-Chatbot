@@ -1,0 +1,185 @@
+{
+  "type": "object",
+  "properties": {
+    "request_id": {
+      "type": "string"
+    },
+    "item": {
+      "type": "string",
+      "enum": [
+        "CBT_1_guided_discovery",
+        "CBT_2_focus",
+        "CBT_3_strategy",
+        "general_1_understanding",
+        "general_2_interpersonal_effectiveness",
+        "general_3_collaboration"
+      ]
+    },
+    "raw_response": {
+      "type": "string"
+    },
+    "language_findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "turn_id": {
+            "type": "integer"
+          },
+          "quote": {
+            "type": "string"
+          },
+          "classification": {
+            "type": "string",
+            "enum": [
+              "problematic",
+              "permitted",
+              "uncertain"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          },
+          "affects_item": {
+            "type": "boolean"
+          },
+          "criterion_quote": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "turn_id",
+          "quote",
+          "classification",
+          "reason",
+          "affects_item",
+          "criterion_quote"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "turn_reviews": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "turn_id": {
+            "type": "integer"
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "appropriate",
+              "needs_improvement",
+              "insufficient_context"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "turn_id": {
+                  "type": "integer"
+                },
+                "quote": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "turn_id",
+                "quote"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "criterion_quote": {
+            "type": "string"
+          },
+          "rewrite_hint": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "turn_id",
+          "decision",
+          "reason",
+          "evidence",
+          "criterion_quote",
+          "rewrite_hint"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "session_limits": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string",
+            "enum": [
+              "repeated_pattern",
+              "session_structure"
+            ]
+          },
+          "turn_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "reason": {
+            "type": "string"
+          },
+          "criterion_quote": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "turn_id": {
+                  "type": "integer"
+                },
+                "quote": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "turn_id",
+                "quote"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "scope",
+          "turn_ids",
+          "reason",
+          "criterion_quote",
+          "evidence"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "limitations": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "request_id",
+    "item",
+    "raw_response",
+    "language_findings",
+    "turn_reviews",
+    "session_limits",
+    "limitations"
+  ],
+  "additionalProperties": false
+}
