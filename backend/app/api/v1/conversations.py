@@ -212,7 +212,9 @@ async def send_message(
             yield _sse("error", {"code": "llm_unavailable", "message": str(exc)})
         except Exception:  # noqa: BLE001 - 스트림 안에서는 에러 이벤트로 알려야 한다
             finish = "error"
-            yield _sse("error", {"code": "internal_error", "message": "응답 생성 중 오류가 났어요."})
+            yield _sse(
+                "error", {"code": "internal_error", "message": "응답 생성 중 오류가 났어요."}
+            )
         finally:
             # 스트림이 끊겨도 받은 만큼 저장 (빈 응답이면 자리만 차지하므로 삭제)
             with SessionLocal() as session:
