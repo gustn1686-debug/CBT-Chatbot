@@ -1,7 +1,8 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
-import { listRecords, resetMockRecords } from '../api/records'
+import { listConversations } from '../api/chat'
+import { resetMockConversations } from '../api/mockChat'
 import { About } from './About'
 import { Settings } from './Settings'
 
@@ -17,7 +18,7 @@ const renderSettings = () => {
 describe('Settings', () => {
   beforeEach(() => {
     localStorage.clear()
-    resetMockRecords()
+    resetMockConversations()
   })
 
   it('기본값(90일, 동의 유지, 알림 켜짐)으로 시작한다', () => {
@@ -47,12 +48,12 @@ describe('Settings', () => {
     expect(screen.getByRole('dialog', { name: '모든 기록을 삭제할까요?' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '취소' }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(await listRecords()).toHaveLength(4)
+    expect(await listConversations()).toHaveLength(3)
 
     await user.click(screen.getByRole('button', { name: /전체 기록 삭제/ }))
     await user.click(screen.getByRole('button', { name: '삭제하기' }))
     expect(await screen.findByText('모든 기록을 삭제했어요')).toBeInTheDocument()
-    expect(await listRecords()).toHaveLength(0)
+    expect(await listConversations()).toHaveLength(0)
   })
 
   it('동의 철회: 확인 모달에서 철회하기를 눌러야 꺼지고, 다시 켜는 건 바로 적용된다', async () => {

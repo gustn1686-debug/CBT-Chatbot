@@ -8,8 +8,6 @@ import { Chat } from './pages/Chat'
 import { Home } from './pages/Home'
 import { Login } from './pages/Login'
 import { Onboarding } from './pages/Onboarding'
-import { RecordDetail } from './pages/RecordDetail'
-import { Records } from './pages/Records'
 import { Settings } from './pages/Settings'
 import { Signup } from './pages/Signup'
 import { Start } from './pages/Start'
@@ -28,8 +26,7 @@ function RequireSession({ children }: { children: ReactNode }) {
 const protectedRoutes: { path: string; element: ReactNode }[] = [
   { path: '/', element: <Home /> },
   { path: '/chat', element: <Chat /> },
-  { path: '/records', element: <Records /> },
-  { path: '/records/:id', element: <RecordDetail /> },
+  { path: '/chat/:id', element: <Chat /> },
   { path: '/settings', element: <Settings /> },
   { path: '/settings/about', element: <About /> },
 ]

@@ -1,35 +1,35 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { getUsage, type Usage } from '../api/auth'
-import { listRecords, type ThoughtRecord } from '../api/records'
+import { listConversations, type ConversationItem } from '../api/chat'
 import { GuestBanner } from '../components/guest/GuestBanner'
 import { GuestSignupSheet } from '../components/guest/GuestSignupSheet'
 import { Mascot } from '../components/Mascot'
 import { TabBar } from '../components/TabBar'
-import { formatDate } from '../lib/format'
+import { formatDate, toLocalDate } from '../lib/format'
 import { getSession } from '../lib/session'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-
-const RECENT_COUNT = 2
 
 // Figma: HiFi_2_홈 / EX_7_홈_빈상태 / GUEST_1_홈_비회원체험 / GUEST_2_가입유도_대화시작시
 export function Home() {
   useDocumentTitle('홈')
   const navigate = useNavigate()
   const isGuest = getSession()?.kind === 'guest'
-  const [records, setRecords] = useState<ThoughtRecord[] | null>(null)
+  const [conversations, setConversations] = useState<ConversationItem[] | null>(null)
   const [usage, setUsage] = useState<Usage | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
 
   useEffect(() => {
-    listRecords().then((all) => setRecords(all.slice(0, RECENT_COUNT)))
+    listConversations()
+      .then((all) => setConversations(all.filter((c) => c.messageCount > 0)))
+      .catch(() => setConversations([]))
   }, [])
 
   useEffect(() => {
     if (isGuest) getUsage().then(setUsage)
   }, [isGuest])
 
-  const isFirstVisit = records !== null && records.length === 0
+  const isFirstVisit = conversations !== null && conversations.length === 0
   const limitReached = isGuest && usage?.signupRequired === true
 
   return (
@@ -65,24 +65,26 @@ export function Home() {
         {isFirstVisit && (
           <div className="flex flex-col items-center gap-2.5 py-9">
             <Mascot variant="waving" width={84} height={100} />
-            <p className="text-[13.5px]/[normal] font-bold">아직 기록이 없어요</p>
-            <p className="text-center text-[11.5px]/[normal] text-muted">첫 대화를 나누면 이곳에 정리한 기록이 쌓여요</p>
+            <p className="text-[13.5px]/[normal] font-bold">아직 나눈 대화가 없어요</p>
+            <p className="text-center text-[11.5px]/[normal] text-muted">첫 대화를 나누면 이곳에 대화 목록이 쌓여요</p>
           </div>
         )}
 
-        {records !== null && records.length > 0 && (
+        {conversations !== null && conversations.length > 0 && (
           <>
-            <h2 className="text-[13px]/[normal] font-bold text-muted">최근 기록</h2>
+            <h2 className="text-[13px]/[normal] font-bold text-muted">지난 대화</h2>
             <ul className="flex flex-col gap-[18px]">
-              {records.map((record) => (
-                <li key={record.id}>
+              {conversations.map((conversation) => (
+                <li key={conversation.id}>
                   <Link
-                    to={`/records/${record.id}`}
+                    to={`/chat/${conversation.id}`}
                     className="flex items-center gap-2 rounded-card bg-white px-3.5 py-3 shadow-card"
                   >
                     <span className="flex flex-1 flex-col gap-0.5">
-                      <span className="text-[12.5px]/[15px]">{record.title}</span>
-                      <span className="text-[10.5px]/[13px] text-muted">{formatDate(record.date)}</span>
+                      <span className="text-[12.5px]/[15px]">{conversation.title ?? '제목 없는 대화'}</span>
+                      <span className="text-[10.5px]/[13px] text-muted">
+                        {formatDate(toLocalDate(conversation.updatedAt))}
+                      </span>
                     </span>
                     <span className="text-[15px]/[normal] text-muted" aria-hidden>
                       ›

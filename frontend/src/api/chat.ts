@@ -1,10 +1,21 @@
-// docs/api-spec.md §4~5 (대화 생성, SSE 채팅)에 대응한다.
+// docs/api-spec.md §4~5 (대화 생성·목록·상세·종료, SSE 채팅)에 대응한다.
 // VITE_USE_MOCK=false 이면 실제 API, 그 외에는 목업(mockChat)을 쓴다.
 import { ApiError, request, useMock } from './client'
-import { mockCreateConversation, mockStreamMessage } from './mockChat'
+import {
+  mockCreateConversation,
+  mockDeleteAllConversations,
+  mockEndConversation,
+  mockGetConversation,
+  mockListConversations,
+  mockStreamMessage,
+} from './mockChat'
 import { readSse } from './sse'
 
 export type CrisisResource = { name: string; tel: string }
+
+export type ConversationItem = { id: string; title: string | null; updatedAt: string; messageCount: number }
+export type StoredMessage = { id: string; role: 'user' | 'assistant'; content: string }
+export type ConversationDetail = { id: string; title: string | null; messages: StoredMessage[] }
 
 export type ChatEvent =
   | {
@@ -24,12 +35,45 @@ export async function createConversation(): Promise<string> {
   return (await res.json()).id
 }
 
+// GET /conversations — 홈의 대화 목록 (최근 대화순)
+export async function listConversations(): Promise<ConversationItem[]> {
+  if (useMock) return mockListConversations()
+  const res = await request('/conversations?limit=50')
+  const { items } = await res.json()
+  return items.map((i: { id: string; title: string | null; updated_at: string; message_count: number }) => ({
+    id: i.id,
+    title: i.title,
+    updatedAt: i.updated_at,
+    messageCount: i.message_count,
+  }))
+}
+
+// GET /conversations/{id} — 지난 대화를 이어서 할 때 이전 메시지를 불러온다.
+export async function getConversation(id: string): Promise<ConversationDetail> {
+  if (useMock) return mockGetConversation(id)
+  const res = await request(`/conversations/${id}`)
+  const body = await res.json()
+  return { id: body.id, title: body.title, messages: body.messages }
+}
+
+// POST /conversations/{id}/end — 대화 종료. 서버가 회기를 요약해 다음 대화에서 기억한다. (응답은 기다리지 않는다)
+export async function endConversation(id: string): Promise<void> {
+  if (useMock) return mockEndConversation()
+  await request(`/conversations/${id}/end`, { method: 'POST' })
+}
+
+// DELETE /conversations — 설정의 "전체 기록 삭제"
+export async function deleteAllConversations(): Promise<void> {
+  if (useMock) return mockDeleteAllConversations()
+  await request('/conversations', { method: 'DELETE' })
+}
+
 export async function* streamMessage(
   conversationId: string,
   content: string,
 ): AsyncGenerator<ChatEvent> {
   if (useMock) {
-    yield* mockStreamMessage(content)
+    yield* mockStreamMessage(conversationId, content)
     return
   }
 

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { deleteAllRecords } from '../api/records'
+import { deleteAllConversations } from '../api/chat'
 import { ConfirmModal } from '../components/ConfirmModal'
 import { TabBar } from '../components/TabBar'
 import { Toggle } from '../components/Toggle'
@@ -57,7 +57,7 @@ export function Settings() {
 
   const deleteAll = async () => {
     setDialog(null)
-    await deleteAllRecords()
+    await deleteAllConversations()
     setDeletedAll(true)
   }
 
