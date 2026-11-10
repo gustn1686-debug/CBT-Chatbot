@@ -126,3 +126,61 @@ def test_upgrade_email_taken_keeps_guest(client):
     )
     assert res.status_code == 409
     assert client.get("/api/v1/me", headers=_h(guest)).json()["kind"] == "guest"
+
+
+def _member(client, email="del@example.com") -> str:
+    res = client.post("/api/v1/auth/register", json={**REG, "email": email})
+    return res.json()["access_token"]
+
+
+def test_delete_member_requires_password(client):
+    token = _member(client)
+    h = _h(token)
+    assert client.delete("/api/v1/me", headers=h).status_code == 403
+    wrong = client.request("DELETE", "/api/v1/me", json={"password": "wrong1234"}, headers=h)
+    assert wrong.status_code == 403
+    assert wrong.json()["code"] == "auth_invalid_credentials"
+    assert client.get("/api/v1/me", headers=h).status_code == 200  # 아직 살아 있음
+
+
+def test_delete_member_removes_everything(client):
+    token = _member(client, "del2@example.com")
+    h = _h(token)
+    cid = client.post("/api/v1/conversations", headers=h).json()["id"]
+    client.post(f"/api/v1/conversations/{cid}/messages", json={"content": "안녕"}, headers=h)
+
+    res = client.request("DELETE", "/api/v1/me", json={"password": "abcd1234"}, headers=h)
+    assert res.status_code == 204
+
+    assert client.get("/api/v1/me", headers=h).status_code == 401  # 토큰의 계정이 사라짐
+    login = client.post(
+        "/api/v1/auth/login", json={"email": "del2@example.com", "password": "abcd1234"}
+    )
+    assert login.status_code == 401
+
+    from sqlalchemy import select
+
+    from app.db import SessionLocal
+    from app.models import Conversation, Message
+
+    with SessionLocal() as db:
+        assert db.get(Conversation, cid) is None
+        assert db.scalars(select(Message).where(Message.conversation_id == cid)).first() is None
+
+    # 같은 이메일로 다시 가입할 수 있다
+    assert (
+        client.post("/api/v1/auth/register", json={**REG, "email": "del2@example.com"}).status_code
+        == 201
+    )
+
+
+def test_delete_guest_without_password(client):
+    token = client.post("/api/v1/auth/guest").json()["access_token"]
+    h = _h(token)
+    cid = client.post("/api/v1/conversations", headers=h).json()["id"]
+    assert client.delete("/api/v1/me", headers=h).status_code == 204
+    assert client.get(f"/api/v1/conversations/{cid}", headers=h).status_code == 401
+
+
+def test_delete_requires_token(client):
+    assert client.delete("/api/v1/me").status_code == 401

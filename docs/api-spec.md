@@ -89,6 +89,16 @@
 - `signup_required`: 비회원이고 `session_count >= guest_session_limit` 이면 `true`
 - `guest_session_limit` 기본 3 (서버 설정값, `미정`)
 
+### `DELETE /me` — 탈퇴
+계정과 모든 대화·메시지를 **즉시** 삭제한다. 되돌릴 수 없다.
+```json
+// 회원: 비밀번호 재확인 필요
+{ "password": "********" }
+```
+- 응답 `204 No Content`. 비회원은 바디 없이 삭제할 수 있다.
+- 회원이 비밀번호를 생략하거나 틀리면 `403 auth_invalid_credentials`.
+- 사용자와 연결되지 않은 위기 감지 통계(`crisis_events`)는 남는다.
+
 ---
 
 ## 4. 대화 (Conversation = 1회기)
