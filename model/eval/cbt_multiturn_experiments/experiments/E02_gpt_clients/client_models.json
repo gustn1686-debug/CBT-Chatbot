@@ -1,8 +1,0 @@
-{
-  "gpt-6-luna": {
-    "reasoning_effort": "none"
-  },
-  "gpt-6.1-sol": {
-    "reasoning_effort": "low"
-  }
-}
