@@ -1,6 +1,0 @@
-{
-  "ctrs_prompts_byte_equal": 360,
-  "generation_inputs_and_dpo_prompts_equal": 78,
-  "pair_prompt_and_schema_equal": true,
-  "live_port_model_calls": 0
-}

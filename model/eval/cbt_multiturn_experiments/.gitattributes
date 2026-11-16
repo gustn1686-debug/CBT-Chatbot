@@ -1,3 +1,0 @@
-# Preserve Markdown hard-break spaces in verbatim historical responses and prompt diffs.
-experiments/*/results/*.md whitespace=-blank-at-eol
-docs/PROMPT_HISTORY.md whitespace=-blank-at-eol
