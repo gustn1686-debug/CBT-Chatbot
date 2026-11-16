@@ -83,7 +83,27 @@ alembic upgrade head
 
 ## 2. 모델 API부터 확인 (우리 코드와 무관하게)
 
-백엔드를 띄우기 전에, 모델 API 자체가 되는지 `curl`로 먼저 본다. (`model/README.md`와 같은 방법)
+백엔드를 띄우기 전에, 모델 API 자체가 되는지 먼저 본다.
+
+### 연결 점검 스크립트 (권장)
+
+루트 `.env`에 `LLM_MODE=runpod`, `RUNPOD_ENDPOINT_URL`, `RUNPOD_API_KEY`를 넣은 뒤 실행한다. 설정 확인, 작업 제출, 결과 조회, 응답 시간까지 한 번에 점검하고 안 되면 원인과 해결 방법을 알려 준다. **키 값은 출력하지 않는다.**
+
+```bash
+cd backend
+source .venv/bin/activate
+python -m scripts.check_model_api          # 기본 점검 (제출 → 조회 → 답변)
+python -m scripts.check_model_api --all    # 2번째 턴, system 메시지, 작업 취소까지 모두 점검
+```
+
+- 점검이 모두 통과하면 종료 코드 0, 하나라도 실패하면 1이다.
+- 첫 요청은 서버가 꺼져 있었다면 오래 걸린다. 기본으로 최대 300초(`--timeout`)까지 기다리며 상태가 바뀌는 시간을 보여 준다. **이 시간이 시연 때 첫 응답 시간이다.**
+- 응답 시간이 `RUNPOD_JOB_TIMEOUT`(기본 120초)에 가까우면 주의 표시가 뜬다.
+- `--all`의 선택 점검은 모델에 요청을 더 보내므로 GPU 시간을 조금 더 쓴다.
+  - **system 메시지**: 거절 없이 처리되는지만 본다. 지시가 실제로 반영되는지는 모델팀에 확인해야 한다. (`RUNPOD_SEND_SYSTEM_PROMPT`를 켜도 되는지 판단하는 참고용)
+  - **작업 취소**: `POST /cancel/{id}`가 되는지 본다. 안 돼도 백엔드는 동작하지만, 시간 초과된 작업이 서버에 남을 수 있다.
+
+### 직접 `curl`로 확인 (`model/README.md`와 같은 방법)
 
 ```bash
 API=https://api.runpod.ai/v2/<엔드포인트 ID>

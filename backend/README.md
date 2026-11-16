@@ -47,3 +47,10 @@ alembic downgrade -1                        # 한 단계 되돌리기
 ```
 - 로컬은 SQLite, 배포는 Supabase(`DATABASE_URL`)로 같은 마이그레이션을 쓴다.
 - 새 컬럼이 NOT NULL 이면 기존 행을 위해 `server_default` 를 주거나 데이터 이전 단계를 넣는다.
+
+## 모델 API 연결 점검
+```bash
+python -m scripts.check_model_api          # 기본 점검 (루트 .env 의 LLM_MODE=runpod, RUNPOD_* 값을 사용)
+python -m scripts.check_model_api --all    # 2번째 턴, system 메시지, 작업 취소까지
+```
+키 값은 출력하지 않는다. 자세한 사용법은 `docs/demo-guide.md` 2번.
