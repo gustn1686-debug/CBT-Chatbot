@@ -1,9 +1,31 @@
 import { NavLink } from 'react-router-dom'
+import homeIcon from '../assets/icons/tab-home.png'
+import settingsIcon from '../assets/icons/tab-settings.png'
 
 const tabs = [
-  { to: '/', label: '홈', icon: '🏠' },
-  { to: '/settings', label: '설정', icon: '⚙️' },
+  { to: '/', label: '홈', icon: homeIcon },
+  { to: '/settings', label: '설정', icon: settingsIcon },
 ]
+
+// 아이콘 이미지는 모양(투명도)만 쓰고 색은 탭의 글자색을 따른다. (선택된 탭은 primary, 아니면 muted)
+function TabIcon({ src }: { src: string }) {
+  return (
+    <span
+      aria-hidden
+      className="block size-[22px] bg-current"
+      style={{
+        maskImage: `url(${src})`,
+        WebkitMaskImage: `url(${src})`,
+        maskSize: 'contain',
+        WebkitMaskSize: 'contain',
+        maskRepeat: 'no-repeat',
+        WebkitMaskRepeat: 'no-repeat',
+        maskPosition: 'center',
+        WebkitMaskPosition: 'center',
+      }}
+    />
+  )
+}
 
 export function TabBar() {
   return (
@@ -19,9 +41,7 @@ export function TabBar() {
             }`
           }
         >
-          <span className="text-[16px]/[normal] text-ink" aria-hidden>
-            {tab.icon}
-          </span>
+          <TabIcon src={tab.icon} />
           {tab.label}
         </NavLink>
       ))}
