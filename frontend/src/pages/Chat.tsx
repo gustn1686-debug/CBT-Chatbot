@@ -7,6 +7,7 @@ import { ChatInput } from '../components/chat/ChatInput'
 import { ConversationDrawer } from '../components/chat/ConversationDrawer'
 import { MessageBubble } from '../components/chat/MessageBubble'
 import { OfflineBanner } from '../components/chat/OfflineBanner'
+import { ConfirmModal } from '../components/ConfirmModal'
 import { CrisisFlow } from '../components/crisis/CrisisFlow'
 import { GuestBanner } from '../components/guest/GuestBanner'
 import { GuestSignupSheet } from '../components/guest/GuestSignupSheet'
@@ -34,6 +35,8 @@ function ChatScreen({ existingId }: { existingId?: string }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [usage, setUsage] = useState<Usage | null>(null)
   const [signupSheetDismissed, setSignupSheetDismissed] = useState(false)
+  // 비회원이 이야기를 나누고 다른 곳으로 가려 할 때, 가입 안내에서 "나중에"를 고르면 실행할 이동
+  const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null)
   const online = useOnlineStatus()
   const bottomRef = useRef<HTMLDivElement>(null)
 
@@ -63,6 +66,12 @@ function ChatScreen({ existingId }: { existingId?: string }) {
   const last = messages[messages.length - 1]
   const announcement =
     last?.role === 'assistant' && last.status === 'sent' && !last.id.startsWith('s-') ? last.content : ''
+
+  // 비회원이 실제로 이야기를 나눴다면, 이 대화를 떠나기 전에 보관(가입)을 한 번 안내한다.
+  const requestLeave = (go: () => void) => {
+    if (isGuest && sent.current) setPendingLeave(() => go)
+    else go()
+  }
 
   const isNewAndEmpty = !existingId && messages.length === 0
   // 무료 대화를 다 쓴 비회원이 새 대화를 시작하려 하면 먼저 가입을 안내한다. ("다음에 할게요"로 계속할 수 있다)
@@ -109,11 +118,29 @@ function ChatScreen({ existingId }: { existingId?: string }) {
       <ChatInput disabled={busy} offline={!online} onSend={send} />
 
       {menuOpen && (
-        <ConversationDrawer currentId={existingId} isGuest={isGuest} onClose={() => setMenuOpen(false)} />
+        <ConversationDrawer currentId={existingId} onClose={() => setMenuOpen(false)} onLeave={requestLeave} />
       )}
 
       {crisis && crisis.messageId !== dismissedCrisis && (
         <CrisisFlow resources={crisis.resources} onClose={() => setDismissedCrisis(crisis.messageId)} />
+      )}
+
+      {pendingLeave && (
+        <ConfirmModal
+          title="대화를 보관하려면 가입이 필요해요"
+          description={'가입하면 지금까지 나눈 대화를\n언제든 이어서 볼 수 있어요.\n가입하시겠어요?'}
+          cancelLabel="나중에 할게요"
+          confirmLabel="가입하기"
+          onCancel={() => {
+            const go = pendingLeave
+            setPendingLeave(null)
+            go()
+          }}
+          onConfirm={() => {
+            setPendingLeave(null)
+            navigate('/signup')
+          }}
+        />
       )}
 
       {showSignupSheet && usage && (

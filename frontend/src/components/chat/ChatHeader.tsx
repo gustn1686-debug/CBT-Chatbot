@@ -26,7 +26,7 @@ export function ChatHeader({ isGuest, online, onMenu }: ChatHeaderProps) {
       <h1 className="text-[16px]/[normal] font-bold">Synap</h1>
 
       {isGuest ? (
-        <Link to="/login" className="rounded-full bg-ink px-4 py-2.5 text-[13px]/[normal] font-bold text-white">
+        <Link to="/login" className="rounded-full bg-primary px-4 py-2.5 text-[13px]/[normal] font-bold text-white">
           로그인
         </Link>
       ) : (

@@ -1,17 +1,19 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { SettingsIcon } from '../SettingsButton'
 import { listConversations, type ConversationItem } from '../../api/chat'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { formatDate, toLocalDate } from '../../lib/format'
 
 type ConversationDrawerProps = {
   currentId?: string
-  isGuest: boolean
   onClose: () => void
+  // 다른 화면·대화로 옮기기 전에 거치는 곳. 필요하면(예: 비회원 가입 안내) 확인을 받고 go 를 실행한다.
+  onLeave: (go: () => void) => void
 }
 
 // ChatGPT 앱의 왼쪽 메뉴처럼 지난 대화 목록을 보여준다. 누르면 그 대화를 이어서 한다.
-export function ConversationDrawer({ currentId, isGuest, onClose }: ConversationDrawerProps) {
+export function ConversationDrawer({ currentId, onClose, onLeave }: ConversationDrawerProps) {
   const navigate = useNavigate()
   const dialogRef = useRef<HTMLDivElement>(null)
   const newChatRef = useRef<HTMLButtonElement>(null)
@@ -37,7 +39,15 @@ export function ConversationDrawer({ currentId, isGuest, onClose }: Conversation
   const startNew = () => {
     onClose()
     // 이미 새 대화 화면이어도 처음 상태로 되돌린다. (location.key 가 바뀌어 화면이 새로 만들어진다)
-    navigate('/', { state: { fresh: Date.now() } })
+    onLeave(() => navigate('/', { state: { fresh: Date.now() } }))
+  }
+
+  // 링크를 눌러 이동할 때 onLeave 를 거친다. (새 탭으로 열기 등은 브라우저에 맡긴다)
+  const goTo = (to: string) => (e: MouseEvent<HTMLAnchorElement>) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return
+    e.preventDefault()
+    onClose()
+    onLeave(() => navigate(to))
   }
 
   return (
@@ -81,7 +91,7 @@ export function ConversationDrawer({ currentId, isGuest, onClose }: Conversation
                 <li key={item.id}>
                   <Link
                     to={`/chat/${item.id}`}
-                    onClick={onClose}
+                    onClick={goTo(`/chat/${item.id}`)}
                     aria-current={item.id === currentId ? 'page' : undefined}
                     className={`flex flex-col gap-0.5 rounded-xl px-2 py-2.5 ${
                       item.id === currentId ? 'bg-surface-muted' : ''
@@ -98,13 +108,13 @@ export function ConversationDrawer({ currentId, isGuest, onClose }: Conversation
           )}
         </nav>
 
-        <div className="flex flex-col gap-1 border-t border-line pt-3">
-          {isGuest && (
-            <Link to="/signup" onClick={onClose} className="rounded-xl px-2 py-2.5 text-[13px]/[16px] font-bold text-primary">
-              가입하고 대화 보관하기
-            </Link>
-          )}
-          <Link to="/settings" onClick={onClose} className="rounded-xl px-2 py-2.5 text-[13px]/[16px]">
+        <div className="border-t border-line pt-3">
+          <Link
+            to="/settings"
+            onClick={goTo('/settings')}
+            className="flex items-center gap-3 rounded-xl px-2 py-2.5 text-[13px]/[16px]"
+          >
+            <SettingsIcon size={20} />
             설정
           </Link>
         </div>
