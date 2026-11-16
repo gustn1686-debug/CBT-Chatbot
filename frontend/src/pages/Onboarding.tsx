@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Mascot, type MascotVariant } from '../components/Mascot'
+import { MascotStage, type MascotVariant } from '../components/Mascot'
 import { Toggle } from '../components/Toggle'
 import { completeOnboarding } from '../lib/preferences'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
@@ -8,7 +8,7 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle'
 type Step = {
   title: string
   body: string[]
-  mascot: { variant: MascotVariant; width: number; height: number }
+  mascot: MascotVariant
 }
 
 // Figma: HiFi_1_온보딩_STEP1~4
@@ -16,22 +16,22 @@ const steps: Step[] = [
   {
     title: '이 서비스는 무엇인가요?',
     body: ['CBT(인지행동치료) 원리를 바탕으로 생각을 정리하도록', '돕는 대화형 자기 정리 도구예요.'],
-    mascot: { variant: 'waving', width: 190, height: 232 },
+    mascot: 'waving',
   },
   {
     title: '이것만은 분명히 알려드릴게요',
     body: ['이 서비스는 전문적인 심리 치료나 상담을', '대체하지 않아요.'],
-    mascot: { variant: 'thinking', width: 210, height: 210 },
+    mascot: 'thinking',
   },
   {
     title: '혹시 위급한 상황이라면',
     body: ['위기 상황이 감지되면 대화를 잠시 멈추고,', '전문기관과 연결되는 화면으로 안내해드려요.'],
-    mascot: { variant: 'playing', width: 230, height: 178 },
+    mascot: 'playing',
   },
   {
     title: '기록을 남길까요?',
     body: ['나눈 대화를 저장해두면 다음에 이어보기 편해요.', '저장 여부는 언제든 바꿀 수 있어요.'],
-    mascot: { variant: 'main', width: 200, height: 244 },
+    mascot: 'main',
   },
 ]
 
@@ -52,14 +52,20 @@ export function Onboarding() {
   return (
     <div className="flex min-h-dvh flex-col">
       <div className="flex justify-end px-6 py-1 pt-5">
-        {!isLast && (
-          <button type="button" onClick={finish} className="-m-3 p-3 text-[12px]/[normal] text-muted">
-            건너뛰기
-          </button>
-        )}
+        {/* 마지막 단계에서도 자리는 그대로 두어(보이지 않을 뿐) 아래 내용이 움직이지 않게 한다 */}
+        <button
+          type="button"
+          onClick={finish}
+          aria-hidden={isLast}
+          tabIndex={isLast ? -1 : undefined}
+          className={`-m-3 p-3 text-[12px]/[normal] text-muted ${isLast ? 'invisible' : ''}`}
+        >
+          건너뛰기
+        </button>
       </div>
 
-      <main className="flex flex-1 flex-col items-center justify-center gap-[18px] px-7 pt-2.5 pb-5">
+      {/* 위에서부터 쌓는다. (가운데 정렬이면 글 줄 수나 토글 유무에 따라 캐릭터 위치가 움직인다) */}
+      <main className="flex flex-1 flex-col items-center justify-start gap-[18px] px-7 pt-[clamp(24px,14dvh,120px)] pb-5">
         <ol className="flex gap-1.5" aria-label={`STEP ${index + 1}/${steps.length}`}>
           {steps.map((_, i) => (
             <li
@@ -70,7 +76,8 @@ export function Onboarding() {
           ))}
         </ol>
 
-        <Mascot {...step.mascot} />
+        {/* 단계마다 포즈가 달라도 캐릭터 크기와 위치가 같도록 고정된 무대에 그린다 */}
+        <MascotStage variant={step.mascot} />
 
         <h1 className="text-center text-[22px]/[normal] font-bold">{step.title}</h1>
         <p className="text-center text-[13px]/[normal] text-muted">
@@ -81,16 +88,19 @@ export function Onboarding() {
           ))}
         </p>
 
-        {isLast && (
-          <Toggle
-            checked={saveHistory}
-            onChange={setSaveHistory}
-            iconPosition="start"
-            className="gap-2.5 rounded-xl bg-white px-4 py-3 shadow-card"
-          >
-            <span className="text-[12.5px]/[normal]">대화 기록 저장하기</span>
-          </Toggle>
-        )}
+        {/* 토글은 마지막 단계에만 보이지만, 자리는 모든 단계에서 비워 두어 캐릭터가 움직이지 않게 한다 */}
+        <div className="flex h-[48px] items-center justify-center">
+          {isLast && (
+            <Toggle
+              checked={saveHistory}
+              onChange={setSaveHistory}
+              iconPosition="start"
+              className="gap-2.5 rounded-xl bg-white px-4 py-3 shadow-card"
+            >
+              <span className="text-[12.5px]/[normal]">대화 기록 저장하기</span>
+            </Toggle>
+          )}
+        </div>
       </main>
 
       <div className="px-7 pt-2 pb-5">

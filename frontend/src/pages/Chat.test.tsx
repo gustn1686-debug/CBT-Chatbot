@@ -152,15 +152,79 @@ describe('Chat', () => {
     expect(screen.getByText('설정 화면')).toBeInTheDocument()
   })
 
-  it('비회원은 오른쪽 위에 로그인 버튼이 있고, 메뉴에서 가입을 안내한다', async () => {
+  it('비회원은 오른쪽 위에 로그인 버튼이 있고, 메뉴에는 설정이 있다', async () => {
     saveSession({ kind: 'guest' })
     const user = renderChat()
     expect(screen.getByRole('link', { name: '로그인' })).toHaveAttribute('href', '/login')
 
     await user.click(screen.getByRole('button', { name: '메뉴 열기' }))
     const menu = screen.getByRole('dialog', { name: '메뉴' })
-    expect(within(menu).getByRole('link', { name: '가입하고 대화 보관하기' })).toHaveAttribute('href', '/signup')
     expect(within(menu).getByRole('link', { name: '설정' })).toHaveAttribute('href', '/settings')
+    expect(within(menu).queryByRole('link', { name: /가입하고 대화 보관하기/ })).not.toBeInTheDocument()
+  })
+
+  describe('비회원이 이야기를 나누고 나가려 할 때', () => {
+    const talk = async (user: ReturnType<typeof userEvent.setup>) => {
+      await user.type(screen.getByLabelText('메시지 입력'), '오늘 있었던 일을 이야기하고 싶어요')
+      await user.click(screen.getByRole('button', { name: '보내기' }))
+      await screen.findAllByText(REPLY)
+    }
+    const openMenu = (user: ReturnType<typeof userEvent.setup>) => user.click(screen.getByRole('button', { name: '메뉴 열기' }))
+    const TITLE = '대화를 보관하려면 가입이 필요해요'
+
+    it('"새 대화"를 누르면 가입 안내가 뜨고, "나중에 할게요"를 누르면 새 대화로 간다', async () => {
+      saveSession({ kind: 'guest' })
+      const user = renderChat()
+      await talk(user)
+      await openMenu(user)
+      await user.click(screen.getByRole('button', { name: /새 대화/ }))
+
+      const dialog = screen.getByRole('dialog', { name: TITLE })
+      expect(within(dialog).getByText(/가입하시겠어요/)).toBeInTheDocument()
+      await user.click(within(dialog).getByRole('button', { name: '나중에 할게요' }))
+      expect(await screen.findByRole('heading', { name: '오늘은 어떤 하루였나요' })).toBeInTheDocument()
+      expect(screen.queryByRole('dialog', { name: TITLE })).not.toBeInTheDocument()
+    })
+
+    it('"가입하기"를 누르면 가입 화면으로 간다', async () => {
+      saveSession({ kind: 'guest' })
+      const user = renderChat()
+      await talk(user)
+      await openMenu(user)
+      await user.click(screen.getByRole('button', { name: /새 대화/ }))
+      await user.click(screen.getByRole('button', { name: '가입하기' }))
+      expect(screen.getByText('가입 화면')).toBeInTheDocument()
+    })
+
+    it('지난 대화로 옮기거나 설정으로 갈 때도 가입 안내를 거친다', async () => {
+      saveSession({ kind: 'guest' })
+      const user = renderChat()
+      await talk(user)
+
+      await openMenu(user)
+      await user.click(within(screen.getByRole('dialog', { name: '메뉴' })).getByRole('link', { name: /친구가 약속을 당일에 취소했어요/ }))
+      await user.click(screen.getByRole('button', { name: '나중에 할게요' }))
+      expect(await screen.findByText('그렇게 느끼신 이유를 조금 더 이야기해 주실 수 있을까요?')).toBeInTheDocument()
+    })
+
+    it('이야기를 나누지 않았다면 안내 없이 바로 이동한다', async () => {
+      saveSession({ kind: 'guest' })
+      const user = renderChat()
+      await openMenu(user)
+      await user.click(within(screen.getByRole('dialog', { name: '메뉴' })).getByRole('link', { name: '설정' }))
+      expect(screen.queryByRole('dialog', { name: TITLE })).not.toBeInTheDocument()
+      expect(screen.getByText('설정 화면')).toBeInTheDocument()
+    })
+
+    it('회원은 이야기를 나눴어도 안내 없이 이동한다', async () => {
+      saveSession({ kind: 'user', email: 'a@b.co', nickname: 'a' })
+      const user = renderChat()
+      await talk(user)
+      await openMenu(user)
+      await user.click(screen.getByRole('button', { name: /새 대화/ }))
+      expect(screen.queryByRole('dialog', { name: TITLE })).not.toBeInTheDocument()
+      expect(await screen.findByRole('heading', { name: '오늘은 어떤 하루였나요' })).toBeInTheDocument()
+    })
   })
 
   it('없는 대화를 열면 새 대화 화면으로 돌아간다', async () => {
