@@ -67,6 +67,8 @@ def parse_summary(text: str) -> dict:
 
 async def summarize_conversation(conversation_id: str) -> None:
     """한 대화를 요약해 저장한다. 실패해도 대화에는 영향이 없도록 조용히 넘어간다."""
+    if not llm.summary_supported():
+        return
     with SessionLocal() as db:
         c = db.get(Conversation, conversation_id)
         if c is None:
@@ -96,6 +98,8 @@ async def summarize_conversation(conversation_id: str) -> None:
 
 async def summarize_stale(user_id: str, exclude_id: str | None = None) -> None:
     """새 대화를 시작할 때, 요약이 없거나 낡은 이전 대화를 최근 순으로 따라잡는다."""
+    if not llm.summary_supported():
+        return
     with SessionLocal() as db:
         last_seq = (
             select(func.max(Message.seq))

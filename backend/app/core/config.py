@@ -21,10 +21,25 @@ class Settings(BaseSettings):
     crisis_retention_days: int = 180
     crisis_log_secret: str = "change-me"
 
-    llm_mode: str = "mock"  # mock | http
+    llm_mode: str = "mock"  # mock | http | runpod
     llm_base_url: str = ""
     llm_api_key: str = ""
     llm_model: str = ""
+
+    # --- RunPod 서버리스 (LLM_MODE=runpod). 작업을 제출(/run)하고 결과를 조회(/status/{id})하는 비동기 방식 ---
+    runpod_endpoint_url: str = ""  # 예: https://api.runpod.ai/v2/<엔드포인트 ID>
+    runpod_api_key: str = ""  # 비밀. .env 에만 둔다 (저장소·채팅에 붙여넣지 않는다)
+    runpod_poll_interval: float = 1.0  # 결과 조회 간격(초)
+    runpod_job_timeout: float = (
+        120  # 작업 하나를 기다리는 최대 시간. 서버가 꺼져 있다 켜지는 시간 포함
+    )
+    runpod_stream_chunk_chars: int = 3  # 완성된 답변을 화면에 흘려 보낼 때 한 번에 보내는 글자 수
+    runpod_stream_chunk_delay: float = 0.02  # 조각 사이 간격(초). 0 이면 지연 없음
+    # 모델 서버에 시스템 프롬프트(+이전 대화 요약)를 보낼지. 팀 모델 API 가 system 메시지를 받는지
+    # 확인되기 전까지는 끈다. 켜면 messages 맨 앞에 role=system 메시지를 붙인다.
+    runpod_send_system_prompt: bool = False
+    # 회기 요약을 같은 모델 API 로 만들지. 상담 응답 전용 API 라면 요약이 동작하지 않으므로 기본은 끈다.
+    runpod_summary_enabled: bool = False
 
     # --- 모델 서버 보호 (동시 호출 제한 · 타임아웃). 초 단위 ---
     llm_max_concurrent: int = 8  # 대화 응답을 동시에 생성할 수 있는 요청 수

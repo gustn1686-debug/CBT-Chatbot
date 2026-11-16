@@ -197,6 +197,25 @@ def delete_conversation(
     return Response(status_code=204)
 
 
+def _alternating(history: list[dict[str, str]]) -> list[dict[str, str]]:
+    """모델에 보내는 이력에서 같은 역할이 연달아 오지 않게 한다.
+
+    응답이 실패한 턴에는 사용자 메시지만 남고(빈 응답은 지운다), 사용자가 "다시 시도"로 같은 말을 다시 보내면
+    user 가 연달아 쌓인다. 같은 내용이면 하나로 합치고, 다른 내용이면 줄바꿈으로 이어 붙인다.
+    """
+    merged: list[dict[str, str]] = []
+    for message in history:
+        if merged and merged[-1]["role"] == message["role"]:
+            if merged[-1]["content"] != message["content"]:
+                merged[-1] = {
+                    "role": message["role"],
+                    "content": f"{merged[-1]['content']}\n{message['content']}",
+                }
+            continue
+        merged.append(dict(message))
+    return merged
+
+
 def _sse(event: str, data: dict) -> str:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
 
@@ -232,7 +251,7 @@ async def send_message(
     db.add(assistant)
     db.commit()
     assistant_id = assistant.id
-    history = [*previous, {"role": "user", "content": content}]
+    history = _alternating([*previous, {"role": "user", "content": content}])
     memory = None if crisis else summary.build_memory(db, user.id, c.id)
 
     async def events() -> AsyncIterator[str]:

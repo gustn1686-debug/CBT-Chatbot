@@ -1,7 +1,9 @@
-"""LLM 호출. LLM_MODE=mock 이면 임시 응답, http 이면 OpenAI 호환 엔드포인트를 스트리밍 호출한다.
+"""LLM 호출.
 
-모델 서버가 준비되면 LLM_MODE=http 와 LLM_BASE_URL / LLM_MODEL 만 채우면 된다.
-하네스(시스템 프롬프트) 연결은 model/harness 가 정리되면 SYSTEM_PROMPT 를 교체한다.
+- LLM_MODE=mock: 임시 응답
+- LLM_MODE=http: OpenAI 호환 엔드포인트를 스트리밍 호출 (LLM_BASE_URL / LLM_MODEL)
+- LLM_MODE=runpod: 팀 모델 API(RunPod 서버리스). 작업 제출(/run) → 결과 조회(/status/{id}) 방식이라
+  답변이 완성된 뒤에 한꺼번에 오며, 화면에는 조각으로 나눠 흘려 보낸다. (model/README.md)
 """
 
 import asyncio
@@ -9,7 +11,7 @@ import json
 import time
 import weakref
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 import httpx
 
@@ -135,6 +137,12 @@ def _system(memory: str | None) -> str:
     )
 
 
+def summary_supported() -> bool:
+    """회기 요약을 만들 수 있는 모델 설정인지. RunPod 는 상담 응답 전용일 수 있어 기본은 끈다."""
+    settings = get_settings()
+    return not (settings.llm_mode == "runpod" and not settings.runpod_summary_enabled)
+
+
 async def stream_reply(
     history: list[dict[str, str]], memory: str | None = None
 ) -> AsyncIterator[str]:
@@ -143,15 +151,22 @@ async def stream_reply(
     memory: 이전 회기 요약 텍스트. 있으면 시스템 프롬프트에 붙는다.
     """
     settings = get_settings()
-    source = _stream_http(history, memory) if settings.llm_mode == "http" else _stream_mock()
+    first = settings.llm_first_token_timeout
+    total = settings.llm_total_timeout
+    if settings.llm_mode == "runpod":
+        source = _stream_runpod(history, memory)
+        # 답변이 완성될 때까지 아무것도 오지 않으므로, 작업 대기 시간이 곧 "첫 글자까지의 시간"이다.
+        first = settings.runpod_job_timeout
+        total = max(total, first + 30)
+    elif settings.llm_mode == "http":
+        source = _stream_http(history, memory)
+    else:
+        source = _stream_mock()
     async with _slot(
         "chat", settings.llm_max_concurrent, settings.llm_max_queue, settings.llm_queue_wait_seconds
     ):
         async for delta in _with_timeouts(
-            source,
-            first=settings.llm_first_token_timeout,
-            idle=settings.llm_idle_timeout,
-            total=settings.llm_total_timeout,
+            source, first=first, idle=settings.llm_idle_timeout, total=total
         ):
             yield delta
 
@@ -206,6 +221,115 @@ async def _stream_http(
         raise LLMError("모델 서버에 연결하지 못했습니다.") from exc
 
 
+# --- RunPod 서버리스 ----------------------------------------------------------
+# POST {endpoint}/run          {"input": {"messages": [...]}}  → {"id": "...", "status": "IN_QUEUE"}
+# GET  {endpoint}/status/{id}  → {"status": "COMPLETED", "output": {"reply": "..."}}
+_RUNPOD_FAILED = {"FAILED", "CANCELLED", "TIMED_OUT"}
+_RUNPOD_MAX_POLL_ERRORS = 3  # 조회가 연달아 이만큼 실패하면 포기한다 (일시적 오류는 넘어간다)
+
+
+def _runpod_client() -> httpx.AsyncClient:
+    """RunPod 호출용 클라이언트. 요청 하나하나는 짧게 끊고, 작업 전체 시간은 바깥에서 제한한다."""
+    return httpx.AsyncClient(timeout=httpx.Timeout(15.0, connect=10.0))
+
+
+def _runpod_messages(history: list[dict[str, str]], memory: str | None) -> list[dict[str, str]]:
+    messages = list(history)
+    if get_settings().runpod_send_system_prompt:
+        messages = [{"role": "system", "content": _system(memory)}, *messages]
+    return messages
+
+
+async def _runpod_cancel(client: httpx.AsyncClient, base: str, headers: dict, job_id: str) -> None:
+    """우리가 기다리기를 그만둔 작업은 서버에서도 취소해 GPU 를 비운다. (실패해도 무시)"""
+    with suppress(Exception):  # 정리 작업이라 실패해도 본 흐름에 영향을 주지 않는다
+        await asyncio.wait_for(client.post(f"{base}/cancel/{job_id}", headers=headers), 3)
+
+
+async def _runpod_reply(messages: list[dict[str, str]]) -> str:
+    """작업을 제출하고 완료될 때까지 조회해 답변 전체를 돌려준다. 시간 제한은 호출하는 쪽에서 건다."""
+    settings = get_settings()
+    base = settings.runpod_endpoint_url.rstrip("/")
+    if not base or not settings.runpod_api_key:
+        raise LLMError("RUNPOD_ENDPOINT_URL 또는 RUNPOD_API_KEY 가 설정되지 않았습니다.")
+    headers = {"Authorization": f"Bearer {settings.runpod_api_key}"}
+
+    job_id: str | None = None
+    done = False
+    async with _runpod_client() as client:
+        try:
+            try:
+                res = await client.post(
+                    f"{base}/run",
+                    headers={**headers, "Content-Type": "application/json"},
+                    json={"input": {"messages": messages}},
+                )
+            except httpx.TimeoutException as exc:
+                raise LLMTimeout(
+                    "모델 서버가 응답하지 않아요. 잠시 후 다시 시도해 주세요."
+                ) from exc
+            except httpx.HTTPError as exc:
+                raise LLMError("모델 서버에 연결하지 못했습니다.") from exc
+            if res.status_code == 429:
+                raise LLMBusy("지금 이용하는 분이 많아요. 잠시 후 다시 시도해 주세요.")
+            if res.status_code in (401, 403):
+                raise LLMError("모델 서버 인증에 실패했습니다. RUNPOD_API_KEY 를 확인하세요.")
+            if res.status_code >= 400:
+                raise LLMError(f"모델 서버 응답 오류({res.status_code})")
+            try:
+                job_id = res.json()["id"]
+            except (ValueError, KeyError, TypeError) as exc:
+                raise LLMError("모델 서버 응답을 읽지 못했습니다.") from exc
+
+            errors = 0
+            while True:
+                try:
+                    res = await client.get(f"{base}/status/{job_id}", headers=headers)
+                    if res.status_code in (401, 403):
+                        raise LLMError(
+                            "모델 서버 인증에 실패했습니다. RUNPOD_API_KEY 를 확인하세요."
+                        )
+                    res.raise_for_status()
+                    body = res.json()
+                    errors = 0
+                except LLMError:
+                    raise
+                except (httpx.HTTPError, ValueError) as exc:
+                    errors += 1
+                    if errors >= _RUNPOD_MAX_POLL_ERRORS:
+                        raise LLMError("모델 서버 결과를 가져오지 못했습니다.") from exc
+                    await asyncio.sleep(settings.runpod_poll_interval)
+                    continue
+
+                status = body.get("status")
+                if status == "COMPLETED":
+                    output = body.get("output")
+                    reply = output.get("reply") if isinstance(output, dict) else output
+                    if not isinstance(reply, str) or not reply.strip():
+                        raise LLMError("모델 서버가 빈 답변을 돌려줬습니다.")
+                    done = True
+                    return reply
+                if status in _RUNPOD_FAILED:
+                    done = True
+                    raise LLMError(f"모델 서버 작업이 실패했습니다({status}).")
+                await asyncio.sleep(settings.runpod_poll_interval)  # IN_QUEUE / IN_PROGRESS
+        finally:
+            if job_id and not done:  # 시간 초과, 오류, 사용자가 떠난 경우 등
+                await _runpod_cancel(client, base, headers, job_id)
+
+
+async def _stream_runpod(
+    history: list[dict[str, str]], memory: str | None = None
+) -> AsyncIterator[str]:
+    settings = get_settings()
+    reply = await _runpod_reply(_runpod_messages(history, memory))
+    step = max(1, settings.runpod_stream_chunk_chars)
+    for i in range(0, len(reply), step):
+        if i and settings.runpod_stream_chunk_delay > 0:
+            await asyncio.sleep(settings.runpod_stream_chunk_delay)
+        yield reply[i : i + step]
+
+
 async def complete(system: str, user: str) -> str:
     """스트리밍 없이 한 번에 받는 호출 (회기 요약용)."""
     settings = get_settings()
@@ -220,6 +344,12 @@ async def complete(system: str, user: str) -> str:
 
 async def _complete(system: str, user: str) -> str:
     settings = get_settings()
+    if settings.llm_mode == "runpod":
+        messages = [{"role": "system", "content": system}, {"role": "user", "content": user}]
+        try:
+            return await asyncio.wait_for(_runpod_reply(messages), settings.llm_summary_timeout)
+        except TimeoutError:
+            raise LLMTimeout("모델 응답이 너무 오래 걸려요.") from None
     if settings.llm_mode != "http":
         return _mock_complete(user)
     if not settings.llm_base_url:
