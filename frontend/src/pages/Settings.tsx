@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { deleteAllConversations } from '../api/chat'
 import { ConfirmModal } from '../components/ConfirmModal'
-import { TabBar } from '../components/TabBar'
 import { Toggle } from '../components/Toggle'
 import {
   getRetentionDays,
@@ -68,7 +67,13 @@ export function Settings() {
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <main className="flex flex-1 flex-col gap-3.5 px-5 pt-5 pb-4">
+      <header className="px-4 pt-5 pb-2.5">
+        <Link to="/" className="text-[13px]/[normal] text-muted">
+          ‹ 대화
+        </Link>
+      </header>
+
+      <main className="flex flex-1 flex-col gap-3.5 px-5 pt-1 pb-8">
         <h1 className="text-[19px]/[normal] font-bold">설정</h1>
 
         <div className={card}>
@@ -127,7 +132,6 @@ export function Settings() {
           </Link>
         </div>
       </main>
-      <TabBar />
 
       {dialog === 'delete-all' && (
         <ConfirmModal

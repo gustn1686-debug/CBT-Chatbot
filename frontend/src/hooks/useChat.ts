@@ -22,25 +22,19 @@ const failReasonOf = (error: unknown): FailReason | undefined => {
   return undefined
 }
 
-// Figma: HiFi_3_채팅 첫 말풍선
-const GREETING: ChatMessage = {
-  id: 'greeting',
-  role: 'assistant',
-  content: '안녕하세요. 오늘은 어떤 얘기를 나눠볼까요?',
-  status: 'sent',
-}
-
 export type CrisisState = { messageId: string; resources: CrisisResource[] } | null
 
 // existingId 가 있으면 지난 대화를 불러와 이어서 한다. (홈의 대화 목록에서 들어온 경우)
 export function useChat(existingId?: string) {
-  const [messages, setMessages] = useState<ChatMessage[]>(() => (existingId ? [] : [GREETING]))
+  const [messages, setMessages] = useState<ChatMessage[]>([])
   const [loading, setLoading] = useState(Boolean(existingId))
   const [loadFailed, setLoadFailed] = useState(false)
   const [busy, setBusy] = useState(false)
   const [crisis, setCrisis] = useState<CrisisState>(null)
   const [signupRequired, setSignupRequired] = useState(false)
   const conversationId = useRef<string | null>(existingId ?? null)
+  // 이 화면에서 메시지를 보낸 적이 있는지. 화면을 떠날 때 대화 종료(요약)를 알릴지 정하는 데 쓴다.
+  const sent = useRef(false)
   const counter = useRef(0)
 
   useEffect(() => {
@@ -74,6 +68,7 @@ export function useChat(existingId?: string) {
   // 사용자 메시지(userId)에 대한 응답을 받아온다. 실패하면 그 메시지를 '전송 실패'로 표시한다.
   const request = useCallback(async (userId: string, content: string) => {
     const replyId = nextId('a')
+    sent.current = true
     setBusy(true)
     setMessages((list) => [...list, { id: replyId, role: 'assistant', content: '', status: 'streaming' }])
 
@@ -132,5 +127,5 @@ export function useChat(existingId?: string) {
     [messages, busy, request],
   )
 
-  return { messages, busy, crisis, signupRequired, loading, loadFailed, conversationId, send, retry }
+  return { messages, busy, crisis, signupRequired, loading, loadFailed, conversationId, sent, send, retry }
 }

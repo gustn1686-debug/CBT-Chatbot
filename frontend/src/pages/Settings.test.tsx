@@ -21,6 +21,12 @@ describe('Settings', () => {
     resetMockConversations()
   })
 
+  it('대화로 돌아가는 링크가 있고, 하단 탭바는 없다', () => {
+    renderSettings()
+    expect(screen.getByRole('link', { name: '‹ 대화' })).toHaveAttribute('href', '/')
+    expect(screen.queryByRole('navigation', { name: '주요 메뉴' })).not.toBeInTheDocument()
+  })
+
   it('기본값(90일, 동의 유지, 알림 켜짐)으로 시작한다', () => {
     renderSettings()
     expect(screen.getByRole('combobox', { name: '기록 저장 기간' })).toHaveValue('90')

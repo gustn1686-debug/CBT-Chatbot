@@ -5,7 +5,6 @@ import { getSession } from './lib/session'
 import { isOnboarded } from './lib/preferences'
 import { About } from './pages/About'
 import { Chat } from './pages/Chat'
-import { Home } from './pages/Home'
 import { Login } from './pages/Login'
 import { Onboarding } from './pages/Onboarding'
 import { Settings } from './pages/Settings'
@@ -24,8 +23,8 @@ function RequireSession({ children }: { children: ReactNode }) {
 }
 
 const protectedRoutes: { path: string; element: ReactNode }[] = [
-  { path: '/', element: <Home /> },
-  { path: '/chat', element: <Chat /> },
+  { path: '/', element: <Chat /> },
+  { path: '/chat', element: <Navigate to="/" replace /> },
   { path: '/chat/:id', element: <Chat /> },
   { path: '/settings', element: <Settings /> },
   { path: '/settings/about', element: <About /> },
