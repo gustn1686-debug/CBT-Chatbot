@@ -192,3 +192,55 @@ def test_timeout_after_partial_reply_keeps_partial(client, monkeypatch):
     assert events[2][1]["code"] == "llm_timeout"
     detail = client.get(f"/api/v1/conversations/{cid}", headers=h).json()
     assert detail["messages"][1]["content"] == "말씀하신 "  # 받은 만큼은 저장
+
+
+def _spy_history(monkeypatch):
+    from app.services import llm
+
+    seen = []
+
+    async def spy(history, memory=None):
+        seen.append(history)
+        yield "네"
+
+    monkeypatch.setattr(llm, "stream_reply", spy)
+    return seen
+
+
+def test_history_after_failed_turn_keeps_roles_alternating(client, monkeypatch):
+    from app.services import llm
+
+    h = _guest(client)
+    cid = client.post("/api/v1/conversations", headers=h).json()["id"]
+
+    async def failing(*_):
+        raise llm.LLMTimeout("시간 초과")
+        yield
+
+    monkeypatch.setattr(llm, "stream_reply", failing)
+    _stream_events(client, h, cid, "내일 발표가 걱정돼요.")  # 응답 없이 사용자 메시지만 남음
+
+    seen = _spy_history(monkeypatch)
+    _stream_events(client, h, cid, "내일 발표가 걱정돼요.")  # 사용자가 "다시 시도"
+    assert seen[-1] == [{"role": "user", "content": "내일 발표가 걱정돼요."}]  # 같은 말은 하나로
+
+    _stream_events(client, h, cid, "첫 문장을 잊어버릴까 봐요.")
+    roles = [m["role"] for m in seen[-1]]
+    assert roles == ["user", "assistant", "user"]
+
+
+def test_different_consecutive_user_messages_are_merged(client, monkeypatch):
+    from app.services import llm
+
+    h = _guest(client)
+    cid = client.post("/api/v1/conversations", headers=h).json()["id"]
+
+    async def failing(*_):
+        raise llm.LLMError("실패")
+        yield
+
+    monkeypatch.setattr(llm, "stream_reply", failing)
+    _stream_events(client, h, cid, "첫 번째 말")
+    seen = _spy_history(monkeypatch)
+    _stream_events(client, h, cid, "두 번째 말")
+    assert seen[-1] == [{"role": "user", "content": "첫 번째 말\n두 번째 말"}]

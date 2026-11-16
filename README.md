@@ -27,16 +27,14 @@ synap/
 | 데이터베이스 | SQLAlchemy 2.0 + Alembic. 로컬은 SQLite, 배포는 Supabase(Postgres, `psycopg`) |
 | 인증 | 직접 구현한 JWT(PyJWT), 비밀번호 해시는 표준 라이브러리 `scrypt` (Supabase Auth는 쓰지 않음) |
 | 실시간 응답 | SSE(Server-Sent Events) 스트리밍 |
-| 모델 호출 | OpenAI 호환 `/chat/completions` 스트리밍(`httpx`). 모델 서버가 없을 때는 `LLM_MODE=mock` |
+| 모델 호출 | 팀 모델 API(RunPod 서버리스): 작업 제출(`/run`) 후 결과 조회(`/status/{id}`), `httpx`. OpenAI 호환 서버(`LLM_MODE=http`)와 모델 서버가 없을 때의 `LLM_MODE=mock`도 지원 |
 | 백엔드 테스트·린트 | pytest, ruff |
-| 모델 학습 (`model/`) | PyTorch, Transformers, TRL, PEFT(QLoRA), bitsandbytes, Accelerate. 현재 연구는 Qwen3.5-27B DPO |
-| 모델 비교 실험 | llama.cpp(GGUF 양자화)로 후보 모델(Qwen, Gemma, Mistral, EXAONE, Llama) 비교 |
-| 모델 평가 | CTRS 6개 항목 LLM-as-a-judge 파이프라인(`model/eval/ctrs_judge`) |
+| 상담 모델 (모델팀 담당) | RunPod 서버리스 엔드포인트로 서빙. 호출 방법은 [`model/README.md`](model/README.md) |
 | 디자인 | Figma(상담챗봇_와이어프레임) |
 | 협업 | GitHub(브랜치 → PR → 리뷰), CodeRabbit 자동 리뷰 |
 
 ### 아직 정해지지 않았거나 준비 중인 것
-- **서비스용 모델 서버**: 실행 방식과 주소가 아직 없다 (`model/serving/`이 비어 있고 `model_release.json`의 `inference_endpoint_url`도 `null`). 정해지면 백엔드의 `LLM_MODE=http`, `LLM_BASE_URL`, `LLM_MODEL`만 채우면 연결된다.
+- **모델 API와의 연결 범위**: 백엔드는 `LLM_MODE=runpod`로 모델 API를 호출한다. 이 API가 시스템 프롬프트(system 메시지)를 받는지, 회기 요약 같은 별도 호출이 가능한지는 모델팀에 확인 중이라 `RUNPOD_SEND_SYSTEM_PROMPT`, `RUNPOD_SUMMARY_ENABLED`를 기본 꺼 두었다.
 - **배포**: 프론트는 Vercel, DB는 Supabase를 쓸 계획이지만 배포 설정 파일(`vercel.json` 등)은 아직 없다. 백엔드를 어디에 올릴지도 미정.
 - **CI**: `.github/workflows`가 없어서 PR에서 자동으로 테스트가 돌지 않는다. (지금은 로컬에서 `pytest`, `npm test`를 실행)
 - **프론트 의존성**: `zustand`(상태 관리)와 `msw`(API 목킹)가 `package.json`에는 있지만 현재 `frontend/src`에서 쓰이지 않는다. 목업은 `src/api/mock*.ts`로 직접 구현했다.
