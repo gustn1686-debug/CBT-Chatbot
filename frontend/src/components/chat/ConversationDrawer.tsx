@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { SettingsIcon } from '../SettingsButton'
+import { SettingsIcon } from '../SettingsIcon'
 import { listConversations, type ConversationItem } from '../../api/chat'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { formatDate, toLocalDate } from '../../lib/format'

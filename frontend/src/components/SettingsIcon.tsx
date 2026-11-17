@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom'
 import settingsIcon from '../assets/icons/settings.png'
 
 // 설정 아이콘. 이미지는 모양(투명도)만 쓰고 색은 글자색을 따른다.
@@ -20,14 +19,5 @@ export function SettingsIcon({ size = 24 }: { size?: number }) {
         WebkitMaskPosition: 'center',
       }}
     />
-  )
-}
-
-// 오른쪽 위의 설정 버튼 (회원)
-export function SettingsButton() {
-  return (
-    <Link to="/settings" aria-label="설정" className="-mr-2 flex size-11 items-center justify-center text-ink">
-      <SettingsIcon />
-    </Link>
   )
 }
