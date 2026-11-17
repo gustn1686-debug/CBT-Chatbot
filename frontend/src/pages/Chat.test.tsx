@@ -143,11 +143,11 @@ describe('Chat', () => {
     expect(screen.queryByRole('dialog', { name: '메뉴' })).not.toBeInTheDocument()
   })
 
-  it('회원은 오른쪽 위 설정 버튼으로, 메뉴의 설정으로 설정에 들어간다', async () => {
+  it('회원은 오른쪽 위에 아무것도 없고, 설정은 메뉴에서 들어간다', async () => {
     saveSession({ kind: 'user', email: 'a@b.co', nickname: 'a' })
     const user = renderChat()
     expect(screen.queryByRole('link', { name: '로그인' })).not.toBeInTheDocument()
-    expect(screen.getAllByRole('link', { name: '설정' })[0]).toHaveAttribute('href', '/settings')
+    expect(screen.queryByRole('link', { name: '설정' })).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: '메뉴 열기' }))
     await user.click(within(screen.getByRole('dialog', { name: '메뉴' })).getByRole('link', { name: '설정' }))

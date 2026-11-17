@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom'
-import { SettingsButton } from '../SettingsButton'
 
 type ChatHeaderProps = {
   isGuest: boolean
@@ -7,7 +6,8 @@ type ChatHeaderProps = {
   onMenu: () => void
 }
 
-// ChatGPT 앱과 같은 구조: 왼쪽 메뉴(지난 대화 목록) · 가운데 제목 · 오른쪽 로그인(비회원) / 설정(회원)
+// ChatGPT 앱과 같은 구조: 왼쪽 메뉴(지난 대화 목록) · 가운데 제목 · 오른쪽 로그인(비회원).
+// 회원은 오른쪽을 비워 둔다. 설정은 왼쪽 메뉴 아래에 있다.
 export function ChatHeader({ isGuest, online, onMenu }: ChatHeaderProps) {
   return (
     <header className={`flex items-center justify-between px-4 pb-2 ${online ? 'pt-4' : 'pt-1.5'}`}>
@@ -30,7 +30,8 @@ export function ChatHeader({ isGuest, online, onMenu }: ChatHeaderProps) {
           로그인
         </Link>
       ) : (
-        <SettingsButton />
+        // 제목이 가운데에 오도록 왼쪽 메뉴 버튼과 같은 너비만 비워 둔다
+        <span aria-hidden className="size-11" />
       )}
     </header>
   )
