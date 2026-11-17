@@ -137,7 +137,9 @@ describe('Chat', () => {
     expect(screen.queryByRole('dialog', { name: '메뉴' })).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: '메뉴 열기' }))
-    await user.click(screen.getAllByRole('button', { name: '메뉴 닫기' })[1]) // 바깥 영역
+    const menu = screen.getByRole('dialog', { name: '메뉴' })
+    const outside = screen.getAllByRole('button', { name: '메뉴 닫기' }).find((b) => !menu.contains(b))!
+    await user.click(outside) // 바깥 영역
     expect(screen.queryByRole('dialog', { name: '메뉴' })).not.toBeInTheDocument()
   })
 

@@ -73,8 +73,6 @@ export function Signup() {
         </header>
 
         <div className="flex flex-1 flex-col gap-3.5 px-7 py-3">
-          <h2 className="text-[20px]/[normal] font-bold">몇 가지만 알려주세요</h2>
-
           <TextField
             label="이메일"
             type="email"
