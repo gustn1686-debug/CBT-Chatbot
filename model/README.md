@@ -10,6 +10,18 @@
 
 모드에 맞춰 워커가 LoRA를 설정합니다. 앱은 자체 백엔드만 호출하고, RunPod 키는 백엔드에 보관합니다.
 
+## 백엔드에서 프롬프트 바꾸기
+
+세 문구를 백엔드에서 각각 관리하고 해당 호출의 `input`에 넣습니다. 기존 엔드포인트·키로 요청할 때마다 적용됩니다. 같은 회기의 다음 턴에도 같은 상담 지침을 쓰려면 매 턴 함께 보냅니다. 필드를 생략하면 그 모드의 기본 문구로 돌아갑니다.
+
+| 어떤 문구를 바꾸나요? | 모드 | 보낼 필드 | 예시 |
+|---|---|---|---|
+| 상담 답변의 말투와 진행 방식 | `chat` 또는 생략 | `chat_prompt` | 감정을 한 문장으로 짚고, 필요할 때만 질문 하나를 해 주세요. |
+| 한 회기의 요약 형식 | `session_summary` | `summary_prompt` | 오늘 다룬 고민과 직접 시도한 일을 두 줄로 정리해 주세요. |
+| 다섯 회기에 걸친 변화 | `plan_summary` | `summary_prompt` | 반복된 주제와 사용자가 보고한 변화를 회기 번호와 함께 적어 주세요. |
+
+프롬프트는 백엔드에서 선택한 비어 있지 않은 문자열로 보냅니다. 앱에서 받은 사용자 발화는 `messages`에 넣습니다. 상담은 지정한 문구가 기본 상담 지침을 대체하며, 워커는 위기 시 안전 확인·도움 연결, 진단·처방 제한, 한국어 출력 지침을 함께 적용합니다. 두 요약은 각 모드의 기본 작성 지시를 교체하며 한국어 존댓말, 기록에 근거해 제안과 실행을 구분하는 공통 지침을 함께 적용합니다. 이 설정은 요청 한 건에만 적용됩니다.
+
 ## 호출 방법
 
 백엔드 서버의 비밀 환경변수 `RUNPOD_API_KEY`에 별도로 전달받은 호출용 키를 등록합니다.
@@ -22,6 +34,18 @@ curl -sS -X POST "$API/run" \
   -H "Authorization: Bearer $RUNPOD_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"input":{"messages":[{"role":"user","content":"내일 발표가 걱정돼요."}]}}'
+```
+
+상담 프롬프트를 시험할 때는 같은 주소에 아래 JSON을 보냅니다.
+
+```json
+{
+  "input": {
+    "mode": "chat",
+    "chat_prompt": "사용자가 표현한 감정을 한 문장으로 짚고, 필요하면 짧은 질문 하나만 해 주세요.",
+    "messages": [{"role": "user", "content": "내일 발표가 걱정돼요."}]
+  }
+}
 ```
 
 ### 2. 답변 가져오기
@@ -55,6 +79,7 @@ curl -sS "$API/status/$JOB_ID" -H "Authorization: Bearer $RUNPOD_API_KEY"
 {
   "input": {
     "mode": "session_summary",
+    "summary_prompt": "오늘 다룬 고민과 사용자가 직접 시도한 일을 두 줄로 정리해 주세요.",
     "messages": [
       {"role": "user", "content": "발표 전에 긴장돼서 첫 문장을 메모했어요."},
       {"role": "assistant", "content": "다음 발표 때도 그 메모를 써 보면 어떨까요?"}
@@ -69,10 +94,10 @@ curl --fail-with-body -sS -X POST "$API/run" \
   -H "Content-Type: application/json" --data-binary @request.json
 ```
 
-2절과 같이 상태를 조회합니다. 완료 응답의 `output`은 다음 형식입니다.
+2절과 같이 상태를 조회합니다. 아래는 완료 응답의 형식 예시입니다.
 
 ```json
-{"mode":"session_summary","summary":"발표 전 긴장을 느껴 첫 문장을 메모하셨습니다. 상담자는 다음 발표에도 메모를 활용해 보자고 제안했습니다.","finish_reason":"stop"}
+{"mode":"session_summary","summary":"오늘 다룬 고민은 발표 전의 긴장이었습니다.\n발표 첫 문장을 직접 메모하셨습니다.","finish_reason":"stop"}
 ```
 
 ### 5. 같은 계획의 다섯 회기를 마쳤을 때
@@ -83,6 +108,7 @@ curl --fail-with-body -sS -X POST "$API/run" \
 {
   "input": {
     "mode": "plan_summary",
+    "summary_prompt": "반복된 주제와 사용자가 보고한 변화를 회기 번호와 함께 정리해 주세요.",
     "sessions": [
       {"session_number": 1, "summary": "발표할 때 첫 문장이 떠오르지 않을까 걱정했습니다."},
       {"session_number": 2, "summary": "첫 문장을 종이에 적어 두었습니다."},
