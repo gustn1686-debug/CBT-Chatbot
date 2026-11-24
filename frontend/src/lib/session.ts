@@ -1,4 +1,6 @@
 // 지금 쓰는 사람이 비회원인지 회원인지 기억한다. (토큰 자체는 api/client.ts 가 보관)
+import { hasToken, useMock } from '../api/client'
+
 export type Session = { kind: 'guest' } | { kind: 'user'; email: string; nickname: string }
 
 const KEY = 'synap.session'
@@ -18,11 +20,19 @@ function parse(raw: string | null): Session | null {
 }
 
 export function getSession(): Session | null {
+  let session: Session | null
   try {
-    return parse(localStorage.getItem(KEY)) ?? parse(sessionStorage.getItem(KEY))
+    session = parse(localStorage.getItem(KEY)) ?? parse(sessionStorage.getItem(KEY))
   } catch {
     return null
   }
+  // 목업 모드는 토큰 없이 세션만 저장한다. 그때 남은 세션으로 실제 서버를 쓰면 요청마다 막히므로
+  // 실제 서버 모드에서 토큰이 없으면 로그인하지 않은 것으로 보고 남은 세션을 지운다.
+  if (session && !useMock && !hasToken()) {
+    clearSession()
+    return null
+  }
+  return session
 }
 
 // remember=false 면 탭을 닫을 때 로그아웃된다. (로그인 화면의 "로그인 상태 유지")
