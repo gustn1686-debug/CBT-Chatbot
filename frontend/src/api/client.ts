@@ -40,6 +40,10 @@ function readToken(): string | null {
   }
 }
 
+export function hasToken(): boolean {
+  return readToken() !== null
+}
+
 export async function request(path: string, init: RequestInit = {}, auth = true): Promise<Response> {
   const headers = new Headers(init.headers)
   headers.set('Content-Type', 'application/json')
