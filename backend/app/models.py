@@ -53,6 +53,10 @@ class User(Base):
     conversations: Mapped[list["Conversation"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
+    plans: Mapped[list["CounselingPlan"]] = relationship(cascade="all, delete-orphan")
+    push_subscriptions: Mapped[list["PushSubscription"]] = relationship(
+        cascade="all, delete-orphan"
+    )
 
 
 class Conversation(Base):
@@ -61,6 +65,7 @@ class Conversation(Base):
     __tablename__ = "conversations"
     __table_args__ = (
         UniqueConstraint("user_id", "session_no", name="uq_conversations_user_session_no"),
+        UniqueConstraint("plan_id", "plan_session_no", name="uq_conversations_plan_session_no"),
         Index("ix_conversations_user_updated", "user_id", "updated_at"),
     )
 
@@ -76,6 +81,24 @@ class Conversation(Base):
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     # 요약이 반영한 마지막 메시지 seq. 이어서 대화하면 요약이 낡은 것이 되어 다시 만든다.
     summary_seq: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # --- 상담 계획의 회기로 마친 대화 ("상담 마치기"). 계획 없이 나눈 대화는 모두 비어 있다. ---
+    plan_id: Mapped[str | None] = mapped_column(
+        ForeignKey("counseling_plans.id", ondelete="SET NULL", name="fk_conversations_plan_id"),
+        nullable=True,
+        index=True,
+    )
+    plan_session_no: Mapped[int | None] = mapped_column(
+        Integer, nullable=True
+    )  # 계획 안의 회기 번호
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # 사용자에게 보여주는 회기 요약(모델 session_summary 모드의 결과 문장). 위의 summary(기억용 JSON)와 별개다.
+    session_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    session_summary_status: Mapped[str | None] = mapped_column(
+        String(20), nullable=True
+    )  # pending | done | failed
+    session_summary_requested_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_now, onupdate=_now
@@ -104,6 +127,47 @@ class Message(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     conversation: Mapped[Conversation] = relationship(back_populates="messages")
+
+
+class CounselingPlan(Base):
+    """상담 계획: 몇 회기를 어떤 요일·시각에 할지. 정해진 시각에 푸시 알림을 보낸다.
+
+    회기는 사용자가 대화에서 "상담 마치기"를 누를 때 하나씩 채워진다 (Conversation.plan_id/plan_session_no).
+    마지막 회기를 마치면 completed 가 되고, 회기 요약을 모아 전체 요약(summary)을 만든다.
+    """
+
+    __tablename__ = "counseling_plans"
+    __table_args__ = (Index("ix_counseling_plans_user_status", "user_id", "status"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    total_sessions: Mapped[int] = mapped_column(Integer)
+    weekdays: Mapped[list] = mapped_column(JSON)  # 0=월 … 6=일
+    remind_time: Mapped[str] = mapped_column(String(5))  # "22:00" (사용자 시간대 기준)
+    timezone: Mapped[str] = mapped_column(String(64), default="Asia/Seoul")
+    status: Mapped[str] = mapped_column(String(20), default="active")  # active|completed|cancelled
+    # 마지막으로 알림을 보낸 예약 시각("2026-11-24 22:00"). 같은 예약을 두 번 보내지 않게 한다.
+    last_reminded_slot: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    summary: Mapped[str | None] = mapped_column(Text, nullable=True)  # 전체 요약 (plan_summary)
+    summary_status: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    summary_requested_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class PushSubscription(Base):
+    """웹 푸시 구독 (기기·브라우저 하나당 한 행). 브라우저가 구독을 버리면(404/410) 지운다."""
+
+    __tablename__ = "push_subscriptions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    endpoint: Mapped[str] = mapped_column(String(2048), unique=True)
+    p256dh: Mapped[str] = mapped_column(String(255))
+    auth: Mapped[str] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
 class CrisisEvent(Base):

@@ -31,7 +31,7 @@ export async function mockLogin({ email, password, remember }: Credentials) {
 
 export async function mockSignUp({ email, nickname }: SignUpInput) {
   if (email === TAKEN_EMAIL) throw new ApiError('email_taken', '이미 가입된 이메일이에요.')
-  // 비회원이던 사람이면 그동안의 사용 횟수가 새 계정으로 옮겨 가는 것으로 본다. (명세 §7-2 미정)
+  // 비회원이던 사람이면 그동안의 사용 횟수가 새 계정으로 옮겨 가는 것으로 본다. (명세 §9-2 미정)
   saveSession({ kind: 'user', email, nickname })
 }
 

@@ -113,7 +113,19 @@ export function ConversationDrawer({ currentId, onClose, onLeave }: Conversation
             )}
           </nav>
 
-          <div className="border-t border-line pt-3">
+          <div className="flex flex-col gap-0.5 border-t border-line pt-3">
+            <Link
+              to="/plan"
+              onClick={goTo('/plan')}
+              className="flex items-center gap-3 rounded-xl px-2 py-2.5 text-[13px]/[16px]"
+            >
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
+                <rect x="3" y="4.5" width="14" height="12.5" rx="2.5" stroke="currentColor" strokeWidth="1.6" />
+                <path d="M3 8.5h14M7 3v3M13 3v3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                <path d="M7.5 12.5l1.8 1.8 3.4-3.6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              상담 계획
+            </Link>
             <Link
               to="/settings"
               onClick={goTo('/settings')}

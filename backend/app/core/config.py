@@ -52,6 +52,26 @@ class Settings(BaseSettings):
     llm_summary_queue_wait_seconds: float = 300
     llm_summary_timeout: float = 120
 
+    # --- 상담 계획: 회기 요약 · 전체 요약 (model/README.md 의 session_summary / plan_summary 모드) ---
+    # 비워 두면 모델의 기본 요약 지시를 쓴다. 바꾸고 싶을 때만 문장을 넣는다.
+    session_summary_prompt: str = ""
+    plan_summary_prompt: str = ""
+
+    # --- 웹 푸시 알림 (상담 시간 알림) ---
+    # 키는 scripts/generate_vapid_keys.py 로 만든다. 개인키는 비밀이라 .env 에만 둔다.
+    # 둘 중 하나라도 비어 있으면 알림을 보내지 않는다 (나머지 기능은 그대로 동작).
+    vapid_public_key: str = ""
+    vapid_private_key: str = ""
+    vapid_subject: str = "mailto:synap@example.com"  # 푸시 서비스가 문제 시 연락할 주소
+    reminder_check_seconds: float = 30  # 알림 보낼 시각이 됐는지 확인하는 간격
+    reminder_window_minutes: int = (
+        15  # 예약 시각에서 이만큼 지나도록 못 보냈으면 그 회차는 건너뛴다
+    )
+
+    @property
+    def push_enabled(self) -> bool:
+        return bool(self.vapid_public_key and self.vapid_private_key)
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

@@ -3,7 +3,7 @@ const SAVE_HISTORY_KEY = 'synap.saveHistory'
 const NOTIFICATIONS_KEY = 'synap.notifications'
 const RETENTION_KEY = 'synap.retentionDays'
 
-// 설정 화면의 "기록 저장 기간" 선택지. 서버 보관 정책(docs/api-spec.md §7-5)이 정해지면 맞춘다.
+// 설정 화면의 "기록 저장 기간" 선택지. 서버 보관 정책(docs/api-spec.md §9-5)이 정해지면 맞춘다.
 export const RETENTION_OPTIONS = [30, 90, 180, 365] as const
 export type RetentionDays = (typeof RETENTION_OPTIONS)[number]
 export const DEFAULT_RETENTION_DAYS: RetentionDays = 90
@@ -34,7 +34,7 @@ export const completeOnboarding = (saveHistory: boolean) => {
 export const isSaveHistory = () => read(SAVE_HISTORY_KEY) !== '0'
 export const setSaveHistory = (value: boolean) => write(SAVE_HISTORY_KEY, value ? '1' : '0')
 
-// 알림 설정 값만 저장한다. 실제 알림 발송은 백엔드가 생긴 뒤에 연결한다.
+// 알림 스위치 값. 회원은 실제 웹 푸시 구독(lib/push.ts)과 함께 바뀌고, 비회원은 이 값만 저장한다.
 export const isNotificationsOn = () => read(NOTIFICATIONS_KEY) !== '0'
 export const setNotificationsOn = (value: boolean) => write(NOTIFICATIONS_KEY, value ? '1' : '0')
 

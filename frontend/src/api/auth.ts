@@ -42,7 +42,7 @@ export async function login(input: Credentials): Promise<void> {
 }
 
 // POST /auth/register, 비회원이면 POST /auth/upgrade 로 그동안의 대화를 새 계정으로 옮긴다.
-// 두 엔드포인트를 합칠지는 명세 §7-2 에서 합의 전이라 여기서 한 곳으로 모아 둔다.
+// 두 엔드포인트를 합칠지는 명세 §9-2 에서 합의 전이라 여기서 한 곳으로 모아 둔다.
 export async function signUp(input: SignUpInput): Promise<void> {
   if (useMock) return mockSignUp(input)
   const upgrading = getSession()?.kind === 'guest'

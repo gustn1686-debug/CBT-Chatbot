@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { createConversation, getConversation, streamMessage, type CrisisResource } from '../api/chat'
+import {
+  createConversation,
+  getConversation,
+  streamMessage,
+  type CompletedSession,
+  type CrisisResource,
+} from '../api/chat'
 import { ApiError } from '../api/client'
 
 export type ChatMessage = {
@@ -32,6 +38,8 @@ export function useChat(existingId?: string) {
   const [busy, setBusy] = useState(false)
   const [crisis, setCrisis] = useState<CrisisState>(null)
   const [signupRequired, setSignupRequired] = useState(false)
+  // 상담 계획의 회기로 이미 마친 대화면 그 정보 (더 보낼 수 없다)
+  const [completedSession, setCompletedSession] = useState<CompletedSession | null>(null)
   const conversationId = useRef<string | null>(existingId ?? null)
   // 이 화면에서 메시지를 보낸 적이 있는지. 화면을 떠날 때 대화 종료(요약)를 알릴지 정하는 데 쓴다.
   const sent = useRef(false)
@@ -46,6 +54,7 @@ export function useChat(existingId?: string) {
         setMessages(
           detail.messages.map((m) => ({ id: `s-${m.id}`, role: m.role, content: m.content, status: 'sent' as const })),
         )
+        setCompletedSession(detail.session ?? null)
         setLoading(false)
       })
       .catch(() => {
@@ -127,5 +136,17 @@ export function useChat(existingId?: string) {
     [messages, busy, request],
   )
 
-  return { messages, busy, crisis, signupRequired, loading, loadFailed, conversationId, sent, send, retry }
+  return {
+    messages,
+    busy,
+    crisis,
+    signupRequired,
+    loading,
+    loadFailed,
+    conversationId,
+    sent,
+    send,
+    retry,
+    completedSession,
+  }
 }

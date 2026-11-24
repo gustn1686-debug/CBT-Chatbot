@@ -9,13 +9,21 @@ import {
   mockListConversations,
   mockStreamMessage,
 } from './mockChat'
+import { mockSessionOf } from './mockPlans'
 import { readSse } from './sse'
 
 export type CrisisResource = { name: string; tel: string }
 
 export type ConversationItem = { id: string; title: string | null; updatedAt: string; messageCount: number }
 export type StoredMessage = { id: string; role: 'user' | 'assistant'; content: string }
-export type ConversationDetail = { id: string; title: string | null; messages: StoredMessage[] }
+// 상담 계획의 회기로 마친 대화면 session 이 있다. 마친 대화에는 더 보낼 수 없다.
+export type CompletedSession = { number: number; completedAt: string }
+export type ConversationDetail = {
+  id: string
+  title: string | null
+  messages: StoredMessage[]
+  session?: CompletedSession | null
+}
 
 export type ChatEvent =
   | {
@@ -50,10 +58,11 @@ export async function listConversations(): Promise<ConversationItem[]> {
 
 // GET /conversations/{id} — 지난 대화를 이어서 할 때 이전 메시지를 불러온다.
 export async function getConversation(id: string): Promise<ConversationDetail> {
-  if (useMock) return mockGetConversation(id)
+  if (useMock) return { ...(await mockGetConversation(id)), session: mockSessionOf(id) }
   const res = await request(`/conversations/${id}`)
   const body = await res.json()
-  return { id: body.id, title: body.title, messages: body.messages }
+  const session = body.session ? { number: body.session.number, completedAt: body.session.completed_at } : null
+  return { id: body.id, title: body.title, messages: body.messages, session }
 }
 
 // POST /conversations/{id}/end — 대화 종료. 서버가 회기를 요약해 다음 대화에서 기억한다. (응답은 기다리지 않는다)

@@ -247,7 +247,12 @@ async def _runpod_cancel(client: httpx.AsyncClient, base: str, headers: dict, jo
 
 
 async def _runpod_reply(messages: list[dict[str, str]]) -> str:
-    """작업을 제출하고 완료될 때까지 조회해 답변 전체를 돌려준다. 시간 제한은 호출하는 쪽에서 건다."""
+    """상담 답변 (chat 모드). 시간 제한은 호출하는 쪽에서 건다."""
+    return await _runpod_job({"messages": messages}, "reply")
+
+
+async def _runpod_job(job_input: dict, output_key: str) -> str:
+    """작업을 제출하고 완료될 때까지 조회해 output[output_key] 를 돌려준다. 시간 제한은 호출하는 쪽에서 건다."""
     settings = get_settings()
     base = settings.runpod_endpoint_url.rstrip("/")
     if not base or not settings.runpod_api_key:
@@ -262,7 +267,7 @@ async def _runpod_reply(messages: list[dict[str, str]]) -> str:
                 res = await client.post(
                     f"{base}/run",
                     headers={**headers, "Content-Type": "application/json"},
-                    json={"input": {"messages": messages}},
+                    json={"input": job_input},
                 )
             except httpx.TimeoutException as exc:
                 raise LLMTimeout(
@@ -304,7 +309,7 @@ async def _runpod_reply(messages: list[dict[str, str]]) -> str:
                 status = body.get("status")
                 if status == "COMPLETED":
                     output = body.get("output")
-                    reply = output.get("reply") if isinstance(output, dict) else output
+                    reply = output.get(output_key) if isinstance(output, dict) else output
                     if not isinstance(reply, str) or not reply.strip():
                         raise LLMError("모델 서버가 빈 답변을 돌려줬습니다.")
                     done = True
@@ -393,3 +398,85 @@ def _mock_complete(user: str) -> str:
         },
         ensure_ascii=False,
     )
+
+
+# --- 상담 계획: 회기 요약 · 전체 요약 ------------------------------------------------
+# RunPod 는 input.mode 로 요약 작업을 고른다 (model/README.md). 결과는 output.summary 문장이다.
+# 사용자에게 그대로 보여주므로 JSON 이 아니라 줄바꿈이 있는 짧은 글이다.
+
+SESSION_SUMMARY_SYSTEM = (
+    "다음은 CBT 상담 챗봇과 사용자의 한 회기 대화입니다. 사용자에게 보여줄 회기 요약을 한국어 존댓말로 "
+    "2~4줄 써 주세요. 오늘 다룬 고민, 알아차린 생각과 감정, 사용자가 해 보기로 한 일을 대화에 있는 "
+    "내용만으로 적고, 제안과 실제로 한 일을 구분하세요."
+)
+PLAN_SUMMARY_SYSTEM = (
+    "다음은 한 사용자의 상담 회기별 요약입니다. 회기 전체를 돌아보는 요약을 한국어 존댓말로 3~6줄 써 "
+    "주세요. 반복된 주제와 사용자가 보고한 변화를 회기 번호와 함께 적고, 기록에 없는 내용은 지어내지 마세요."
+)
+
+
+async def summarize_session(messages: list[dict[str, str]]) -> str:
+    """한 회기 대화 → 사용자용 회기 요약. messages 는 user 로 시작해 번갈아 와야 한다."""
+    settings = get_settings()
+    job: dict = {"mode": "session_summary", "messages": messages}
+    if settings.session_summary_prompt:
+        job["summary_prompt"] = settings.session_summary_prompt
+    transcript = "\n".join(
+        f"{'사용자' if m['role'] == 'user' else '상담사'}: {m['content']}" for m in messages
+    )
+    return await _summarize(
+        job, SESSION_SUMMARY_SYSTEM, transcript, _mock_session_summary(messages)
+    )
+
+
+async def summarize_plan(sessions: list[dict]) -> str:
+    """[{"session_number": 1, "summary": "..."}, ...] (1부터 순서대로) → 전체 요약."""
+    settings = get_settings()
+    job: dict = {"mode": "plan_summary", "sessions": sessions}
+    if settings.plan_summary_prompt:
+        job["summary_prompt"] = settings.plan_summary_prompt
+    text = "\n".join(f"{s['session_number']}회기: {s['summary']}" for s in sessions)
+    return await _summarize(job, PLAN_SUMMARY_SYSTEM, text, _mock_plan_summary(sessions))
+
+
+async def _summarize(job: dict, system: str, text: str, mock: str) -> str:
+    settings = get_settings()
+    async with _slot(
+        "summary",
+        settings.llm_summary_max_concurrent,
+        max_queue=1000,
+        wait=settings.llm_summary_queue_wait_seconds,
+    ):
+        if settings.llm_mode == "runpod":
+            # 서버가 꺼져 있다 켜지는 시간까지 기다릴 수 있게 작업 대기 시간과 요약 시간 중 긴 쪽을 쓴다.
+            limit = max(settings.llm_summary_timeout, settings.runpod_job_timeout)
+            try:
+                result = await asyncio.wait_for(_runpod_job(job, "summary"), limit)
+            except TimeoutError:
+                raise LLMTimeout("모델 응답이 너무 오래 걸려요.") from None
+        elif settings.llm_mode == "http":
+            result = await _complete(system, text)
+        else:
+            await asyncio.sleep(0)
+            result = mock
+    result = result.strip()
+    if not result:
+        raise LLMError("모델 서버가 빈 요약을 돌려줬습니다.")
+    return result
+
+
+def _mock_session_summary(messages: list[dict[str, str]]) -> str:
+    first = next((m["content"] for m in messages if m["role"] == "user"), "")
+    turns = sum(1 for m in messages if m["role"] == "user")
+    return (
+        f"오늘은 '{first[:40]}'에 대해 이야기를 나누셨어요.\n"
+        f"{turns}번 마음을 털어놓으며 그때 떠오른 생각과 감정을 차분히 살펴보셨어요.\n"
+        "다음 회기까지 비슷한 순간이 오면 떠오른 생각을 한 줄 적어 보기로 했어요."
+    )
+
+
+def _mock_plan_summary(sessions: list[dict]) -> str:
+    lines = [f"{len(sessions)}번의 상담을 끝까지 마치셨어요."]
+    lines += [f"{s['session_number']}회기: {s['summary'].splitlines()[0]}" for s in sessions]
+    lines.append("회기를 거듭하며 떠오른 생각을 알아차리고 다르게 바라보는 연습을 이어 오셨어요.")
+    return "\n".join(lines)
