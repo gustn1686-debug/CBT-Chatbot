@@ -158,7 +158,12 @@ def get_conversation(
         if m.role == "assistant":
             item["crisis"] = m.crisis
         messages.append(item)
-    return {"id": c.id, "title": c.title, "messages": messages}
+    session = (
+        {"number": c.plan_session_no, "completed_at": _iso(c.completed_at)}
+        if c.plan_id is not None and c.completed_at is not None
+        else None
+    )
+    return {"id": c.id, "title": c.title, "messages": messages, "session": session}
 
 
 @router.delete("", status_code=204)
@@ -228,6 +233,10 @@ async def send_message(
     db: Session = Depends(get_db),
 ) -> StreamingResponse:
     c = _get_owned(db, user, conversation_id)
+    if c.completed_at is not None:
+        raise AppError(
+            409, "session_completed", "이 상담은 이미 마쳤어요. 새 대화에서 이어가 주세요."
+        )
     content = body.content.strip()
     if not content:
         raise AppError(422, "validation_error", "내용을 입력해 주세요.")

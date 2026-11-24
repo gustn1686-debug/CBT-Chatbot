@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { getUsage, type Usage } from '../api/auth'
 import { endConversation } from '../api/chat'
+import { ApiError } from '../api/client'
+import { completeSession } from '../api/plans'
 import { ChatHeader } from '../components/chat/ChatHeader'
 import { ChatInput } from '../components/chat/ChatInput'
 import { ConversationDrawer } from '../components/chat/ConversationDrawer'
@@ -15,6 +17,7 @@ import { Mascot } from '../components/Mascot'
 import { useChat } from '../hooks/useChat'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useOnlineStatus } from '../hooks/useOnlineStatus'
+import { useCurrentPlan } from '../hooks/usePlan'
 import { getSession } from '../lib/session'
 
 // 홈이 곧 채팅이다. (ChatGPT 앱처럼) 앱을 열면 바로 새 대화가 시작되고,
@@ -30,7 +33,12 @@ function ChatScreen({ existingId }: { existingId?: string }) {
   useDocumentTitle('대화')
   const navigate = useNavigate()
   const isGuest = getSession()?.kind === 'guest'
-  const { messages, busy, crisis, loading, loadFailed, conversationId, sent, send, retry } = useChat(existingId)
+  const { messages, busy, crisis, loading, loadFailed, conversationId, sent, send, retry, completedSession } =
+    useChat(existingId)
+  // 상담 계획 (회원만). 진행 중이면 "상담 마치기"로 이 대화를 다음 회기로 채울 수 있다.
+  const { plan, loaded: planLoaded } = useCurrentPlan(!isGuest)
+  const [confirmFinish, setConfirmFinish] = useState(false)
+  const [finishError, setFinishError] = useState('')
   const [dismissedCrisis, setDismissedCrisis] = useState<string | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [usage, setUsage] = useState<Usage | null>(null)
@@ -74,6 +82,22 @@ function ChatScreen({ existingId }: { existingId?: string }) {
   }
 
   const isNewAndEmpty = !existingId && messages.length === 0
+  const activePlan = plan?.status === 'active' ? plan : null
+  const talked = messages.some((m) => m.role === 'user' && m.status === 'sent')
+  const canFinish = !!activePlan && !completedSession && talked && !busy
+
+  const finish = async () => {
+    setConfirmFinish(false)
+    setFinishError('')
+    const id = conversationId.current
+    if (!id) return
+    try {
+      await completeSession(id)
+      navigate(`/plan/session/${id}`, { state: { justCompleted: true } })
+    } catch (error) {
+      setFinishError(error instanceof ApiError ? error.message : '상담을 마치지 못했어요. 잠시 후 다시 시도해 주세요.')
+    }
+  }
   // 무료 대화를 다 쓴 비회원이 새 대화를 시작하려 하면 먼저 가입을 안내한다. ("다음에 할게요"로 계속할 수 있다)
   const showSignupSheet = !existingId && isGuest && usage?.signupRequired === true && !signupSheetDismissed
 
@@ -90,6 +114,24 @@ function ChatScreen({ existingId }: { existingId?: string }) {
               <h2 className="text-[22px]/[normal] font-bold">오늘은 어떤 하루였나요</h2>
               <p className="text-[12.5px]/[normal] text-muted">마음이 복잡할 때, 잠시 정리해볼까요</p>
             </div>
+            {activePlan ? (
+              <Link
+                to="/plan"
+                className="flex items-center gap-2 rounded-full bg-tag-bg px-4 py-2 text-[12.5px]/[normal] font-bold text-primary-ink"
+              >
+                오늘은 {activePlan.completedSessions + 1}회기 상담이에요
+                <span className="font-normal">
+                  ({activePlan.completedSessions}/{activePlan.totalSessions})
+                </span>
+              </Link>
+            ) : (
+              !isGuest &&
+              planLoaded && (
+                <Link to="/plan/new" className="text-[12.5px]/[normal] text-primary-ink underline underline-offset-4">
+                  상담 일정을 정해 볼까요? ›
+                </Link>
+              )
+            )}
             {isGuest && usage && (
               <div className="w-full">
                 <GuestBanner used={usage.sessionCount} limit={usage.limit} />
@@ -115,7 +157,47 @@ function ChatScreen({ existingId }: { existingId?: string }) {
         {announcement}
       </p>
 
-      <ChatInput disabled={busy} offline={!online} onSend={send} />
+      {completedSession ? (
+        <div className="flex flex-col items-center gap-2.5 border-t border-line px-4 pt-3.5 pb-5 text-center">
+          <p className="text-[12.5px]/[normal] text-muted">{completedSession.number}회기로 마친 상담이에요</p>
+          <div className="flex w-full gap-2">
+            <Link
+              to={`/plan/session/${existingId}`}
+              className="flex-1 rounded-button bg-tag-bg py-3 text-[13.5px]/[normal] font-bold text-primary-ink"
+            >
+              요약 보기
+            </Link>
+            <Link to="/" className="flex-1 rounded-button bg-primary py-3 text-[13.5px]/[normal] font-bold text-white">
+              새 대화
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <>
+          {(canFinish || finishError) && (
+            <div className="flex flex-col items-end gap-1 px-4 pb-1.5">
+              {finishError && (
+                <p role="alert" className="text-[11.5px]/[normal] text-danger">
+                  {finishError}
+                </p>
+              )}
+              {canFinish && (
+                <button
+                  type="button"
+                  onClick={() => setConfirmFinish(true)}
+                  className="flex items-center gap-1.5 rounded-full border border-primary/40 bg-white px-3.5 py-2 text-[12.5px]/[normal] font-bold text-primary-ink shadow-card"
+                >
+                  <svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden>
+                    <path d="M4.5 10.5l3.5 3.5 7.5-8" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  상담 마치기
+                </button>
+              )}
+            </div>
+          )}
+          <ChatInput disabled={busy} offline={!online} onSend={send} />
+        </>
+      )}
 
       {menuOpen && (
         <ConversationDrawer currentId={existingId} onClose={() => setMenuOpen(false)} onLeave={requestLeave} />
@@ -123,6 +205,17 @@ function ChatScreen({ existingId }: { existingId?: string }) {
 
       {crisis && crisis.messageId !== dismissedCrisis && (
         <CrisisFlow resources={crisis.resources} onClose={() => setDismissedCrisis(crisis.messageId)} />
+      )}
+
+      {confirmFinish && activePlan && (
+        <ConfirmModal
+          title="오늘 상담을 마칠까요?"
+          description={`${activePlan.completedSessions + 1}회기로 기록하고,\n오늘 나눈 이야기를 정리해 드릴게요.`}
+          cancelLabel="더 이야기할게요"
+          confirmLabel="마치기"
+          onCancel={() => setConfirmFinish(false)}
+          onConfirm={finish}
+        />
       )}
 
       {pendingLeave && (

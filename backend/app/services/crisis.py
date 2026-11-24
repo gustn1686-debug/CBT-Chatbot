@@ -1,6 +1,6 @@
 """위기 감지: 키워드 매칭. 감지되면 LLM을 호출하지 않고 고정 안내 문구를 내려준다.
 
-키워드 목록과 문구/연락처는 임시안이며, 팀·전문가 검토 후 교체한다. (docs/api-spec.md §7-4, docs/crisis-keywords-draft.md)
+키워드 목록과 문구/연락처는 임시안이며, 팀·전문가 검토 후 교체한다. (docs/api-spec.md §9-4, docs/crisis-keywords-draft.md)
 """
 
 import hashlib

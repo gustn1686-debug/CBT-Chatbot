@@ -31,7 +31,7 @@ describe('Settings', () => {
     renderSettings()
     expect(screen.getByRole('combobox', { name: '기록 저장 기간' })).toHaveValue('90')
     expect(screen.getByRole('switch', { name: '데이터 수집 동의 철회' })).toBeChecked()
-    expect(screen.getByRole('switch', { name: '알림' })).toBeChecked()
+    expect(screen.getByRole('switch', { name: '상담 시간 알림' })).toBeChecked()
   })
 
   it('기록 저장 기간을 바꾸면 저장되고, 다시 열어도 유지된다', async () => {
@@ -90,10 +90,10 @@ describe('Settings', () => {
     expect(screen.getByRole('switch', { name: '데이터 수집 동의 철회' })).not.toBeChecked()
   })
 
-  it('알림 토글은 값만 저장한다', async () => {
+  it('회원이 아니면 알림 토글은 값만 저장한다', async () => {
     const user = renderSettings()
-    await user.click(screen.getByRole('switch', { name: '알림' }))
-    expect(screen.getByRole('switch', { name: '알림' })).not.toBeChecked()
+    await user.click(screen.getByRole('switch', { name: '상담 시간 알림' }))
+    expect(screen.getByRole('switch', { name: '상담 시간 알림' })).not.toBeChecked()
     expect(localStorage.getItem('synap.notifications')).toBe('0')
   })
 

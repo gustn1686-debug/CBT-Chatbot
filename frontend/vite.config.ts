@@ -22,6 +22,8 @@ export default defineConfig({
         // 마스코트 이미지(webp)와 아이콘까지 미리 받아 두어야 오프라인에서도 화면이 그대로 나온다.
         globPatterns: ['**/*.{js,css,html,svg,png,webp,ico,woff2}'],
         cleanupOutdatedCaches: true,
+        // 상담 시간 알림(웹 푸시) 받기·누르기 처리
+        importScripts: ['push-sw.js'],
         navigateFallback: 'index.html',
         navigateFallbackDenylist: [/^\/api\//],
         runtimeCaching: [

@@ -127,6 +127,24 @@ erDiagram
 - 주의: 코드 자체는 **가명(pseudonym)** 이라 비밀키와 사용자 ID를 모두 가진 쪽은 다시 연결할 수 있다. 완전 익명이 필요하면 `anon_code`를 아예 두지 않고 건수만 센다. (`미정`)
 - 이 기록의 보관 기간은 `미정` (초안: 통계 목적이라 180일).
 
+### 3.5 상담 계획 (`counseling_plans`, `push_subscriptions`, `conversations` 추가 열) — 마이그레이션 0003
+
+`counseling_plans`: 사용자별 상담 계획. 진행 중(`active`)인 계획은 사용자당 하나 (API에서 막는다).
+
+| 열 | 설명 |
+|---|---|
+| `user_id` | FK users (CASCADE) |
+| `total_sessions` | 계획한 회기 수 |
+| `weekdays` (JSON), `remind_time` ("22:00"), `timezone` | 알림 일정. 0=월 … 6=일 |
+| `status` | `active` · `completed` · `cancelled` |
+| `last_reminded_slot` | 마지막으로 알림을 보낸 예약("2026-11-24 22:00"). 중복 발송 방지 |
+| `summary`, `summary_status`, `summary_requested_at` | 전체 요약 (모델 `plan_summary`) |
+| `completed_at` | 마지막 회기를 마친 시각 |
+
+`conversations`에 추가: `plan_id`(FK, SET NULL) · `plan_session_no`(계획 안의 회기 번호, `(plan_id, plan_session_no)` 유일) · `completed_at`(상담 마치기 시각) · `session_summary` · `session_summary_status` · `session_summary_requested_at`. 사용자에게 보여주는 회기 요약이며, 기억용 `summary`(JSON)와는 따로 둔다.
+
+`push_subscriptions`: 기기(브라우저)별 웹 푸시 구독. `endpoint` 유일, `user_id` FK(CASCADE). 탈퇴·보관 기간 만료로 사용자가 지워지면 계획·구독도 함께 지워진다.
+
 ## 4. 후속 테이블 (개요만)
 
 - `checkins`: user_id, mood(1~10), note, created_at

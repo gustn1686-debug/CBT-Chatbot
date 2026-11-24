@@ -41,6 +41,22 @@
   --shadow-card: 0 2px 8px 0 rgb(0 0 0 / 0.06);
 
   --font-sans: 'Noto Sans KR', system-ui, sans-serif;
+
+  /* 회기를 마쳤을 때 도장이 찍히는 움직임 */
+  --animate-stamp: stamp 0.55s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+  @keyframes stamp {
+    0% {
+      opacity: 0;
+      transform: scale(2.2) rotate(-18deg);
+    }
+    70% {
+      opacity: 1;
+      transform: scale(0.92) rotate(-4deg);
+    }
+    100% {
+      transform: scale(1) rotate(-6deg);
+    }
+  }
 }
 
 html,
@@ -58,4 +74,12 @@ body {
   /* 한국어는 단어 단위로 줄바꿈하고, 너무 긴 영문·주소만 강제로 끊는다 */
   word-break: keep-all;
   overflow-wrap: anywhere;
+}
+
+/* 움직임 줄이기를 켠 사용자에게는 애니메이션을 보여주지 않는다 */
+@media (prefers-reduced-motion: reduce) {
+  .animate-stamp,
+  .animate-pulse {
+    animation: none;
+  }
 }

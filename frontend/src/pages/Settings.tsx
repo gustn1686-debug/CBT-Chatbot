@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { deleteAllConversations } from '../api/chat'
 import { ConfirmModal } from '../components/ConfirmModal'
@@ -14,6 +14,9 @@ import {
   type RetentionDays,
 } from '../lib/preferences'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { disablePush, enablePush, getPushState, type PushState } from '../lib/push'
+import { getSession } from '../lib/session'
+import { pushHint } from '../lib/plan'
 
 const retentionLabel = (days: RetentionDays) => (days === 365 ? '1년' : `${days}일`)
 
@@ -23,7 +26,7 @@ const row = 'flex w-full items-center justify-between px-4 py-3.5 text-left text
 type Dialog = 'delete-all' | 'withdraw' | null
 
 // Figma: HiFi_7_설정 / EX_2_기록삭제_확인모달 / EX_3_동의철회_확인모달
-// 보관 기간·동의 철회는 서버 정책(docs/api-spec.md §7-5)이 정해지기 전까지 이 기기의 설정으로만 동작한다.
+// 보관 기간·동의 철회는 서버 정책(docs/api-spec.md §9-5)이 정해지기 전까지 이 기기의 설정으로만 동작한다.
 export function Settings() {
   useDocumentTitle('설정')
   const [days, setDays] = useState(getRetentionDays)
@@ -31,6 +34,14 @@ export function Settings() {
   const [notifications, setNotificationsState] = useState(isNotificationsOn)
   const [dialog, setDialog] = useState<Dialog>(null)
   const [deletedAll, setDeletedAll] = useState(false)
+  // 회원은 실제 상담 시간 알림(웹 푸시)을 켜고 끈다. 비회원은 상담 계획이 없어 기기 설정 값만 저장한다.
+  const isMember = getSession()?.kind === 'user'
+  const [pushState, setPushState] = useState<PushState | null>(null)
+  const [pushBusy, setPushBusy] = useState(false)
+
+  useEffect(() => {
+    if (isMember) getPushState().then(setPushState)
+  }, [isMember])
 
   const changeRetention = (value: number) => {
     const next = RETENTION_OPTIONS.find((option) => option === value)
@@ -60,10 +71,20 @@ export function Settings() {
     setDeletedAll(true)
   }
 
-  const changeNotifications = (next: boolean) => {
+  const changeNotifications = async (next: boolean) => {
     setNotificationsOn(next)
     setNotificationsState(next)
+    if (!isMember || pushBusy) return
+    setPushBusy(true)
+    const state = await (next ? enablePush() : disablePush()).catch(() => pushState)
+    setPushState(state)
+    setNotificationsOn(state === 'on')
+    setNotificationsState(state === 'on')
+    setPushBusy(false)
   }
+
+  const notificationsChecked = isMember && pushState !== null ? pushState === 'on' : notifications
+  const notificationHint = isMember && pushState && pushState !== 'on' && pushState !== 'off' ? pushHint(pushState) : ''
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -120,9 +141,10 @@ export function Settings() {
         </div>
 
         <div className={card}>
-          <Toggle checked={notifications} onChange={changeNotifications} className={`${row} justify-between`}>
-            <span>알림</span>
+          <Toggle checked={notificationsChecked} onChange={changeNotifications} className={`${row} justify-between`}>
+            <span>상담 시간 알림</span>
           </Toggle>
+          {notificationHint && <p className="px-4 pb-3 text-[11px]/[1.5] text-muted">{notificationHint}</p>}
           <div className="h-px bg-line" />
           <Link to="/settings/about" className={row}>
             <span>앱 정보</span>

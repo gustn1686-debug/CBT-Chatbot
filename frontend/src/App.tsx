@@ -7,6 +7,9 @@ import { About } from './pages/About'
 import { Chat } from './pages/Chat'
 import { Login } from './pages/Login'
 import { Onboarding } from './pages/Onboarding'
+import { PlanPage } from './pages/PlanPage'
+import { PlanSetup } from './pages/PlanSetup'
+import { SessionDone } from './pages/SessionDone'
 import { Settings } from './pages/Settings'
 import { Signup } from './pages/Signup'
 import { Start } from './pages/Start'
@@ -28,6 +31,10 @@ const protectedRoutes: { path: string; element: ReactNode }[] = [
   { path: '/chat/:id', element: <Chat /> },
   { path: '/settings', element: <Settings /> },
   { path: '/settings/about', element: <About /> },
+  { path: '/plan', element: <PlanPage /> },
+  { path: '/plan/new', element: <PlanSetup mode="new" /> },
+  { path: '/plan/edit', element: <PlanSetup mode="edit" /> },
+  { path: '/plan/session/:id', element: <SessionDone /> },
 ]
 
 const authRoutes: { path: string; element: ReactNode }[] = [

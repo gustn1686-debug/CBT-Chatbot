@@ -6,3 +6,4 @@ psycopg[binary]>=3.2
 pyjwt>=2.9
 httpx>=0.27
 alembic>=1.13
+pywebpush>=2.0

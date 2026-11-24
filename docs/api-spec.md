@@ -192,14 +192,64 @@ data: {"message_id":"m_2","crisis":true,"signup_required":false,
 
 ---
 
-## 6. 후속 범위 (명세 추후 확정)
+## 6. 상담 계획 (회원만)
+
+몇 회기를 어떤 요일·시각에 할지 정하면, 그 시각에 웹 푸시로 알린다. 대화에서 "상담 마치기"를 누를 때마다 한 회기가 채워지고(도장), 회기 요약을 만든다. 마지막 회기를 마치면 회기 요약을 모아 전체 요약을 만든다. 요약은 모델 API의 `session_summary` / `plan_summary` 모드를 쓴다 (`model/README.md`).
+
+비회원이 부르면 `403 member_required`. 진행 중인 계획은 한 번에 하나다.
+
+공통 응답 `plan`:
+
+```json
+{
+  "id": "…", "status": "active",            // active | completed (그만둔 계획은 보이지 않는다)
+  "total_sessions": 5, "completed_sessions": 2,
+  "weekdays": [0, 3], "time": "22:00", "timezone": "Asia/Seoul",   // 0=월 … 6=일
+  "schedule_label": "매주 월·목 22:00",
+  "next_reminder_at": "2026-11-26T13:00:00Z",   // 진행 중이 아니면 null
+  "created_at": "…", "completed_at": null,
+  "sessions": [ {"number": 1, "total": 5, "conversation_id": "…", "title": "…",
+                 "completed_at": "…", "summary_status": "done", "summary": "줄바꿈이 있는 요약 글"} ],
+  "summary_status": null, "summary": null    // 전체 요약. 모든 회기를 마친 뒤에 생긴다
+}
+```
+
+`summary_status`: `pending`(만드는 중) · `done` · `failed`. 10분 넘게 `pending`이면(서버 재시작 등) `failed`로 보여 다시 시도할 수 있다. 앱은 `pending`인 동안 3초마다 다시 불러온다.
+
+| 요청 | 설명 |
+|---|---|
+| `GET /plans/current` | `{"plan": …}` 진행 중인 계획. 없으면 가장 최근에 마친 계획, 그것도 없으면 `null` |
+| `POST /plans` | `{"total_sessions": 1~12, "weekdays": [...], "time": "HH:MM", "timezone": "Asia/Seoul"}` → 201. 진행 중인 계획이 있으면 `409 plan_exists` |
+| `PATCH /plans/{id}` | 일정만 바꾼다 (`weekdays`, `time`, `timezone`). 진행 중일 때만 |
+| `POST /plans/{id}/cancel` | 계획 그만두기. 알림이 멈추고, 마친 회기의 대화·요약은 남는다 |
+| `POST /plans/{id}/summary/retry` | 실패한 회기 요약 → 전체 요약 순서로 다시 만든다 |
+| `POST /conversations/{id}/complete` | **상담 마치기.** 이 대화를 다음 회기로 채운다 → `{"session": …, "plan": …}`. 두 번 눌러도 같은 결과. 사용자 메시지가 없으면 `409 empty_session`, 진행 중인 계획이 없으면 `409 no_active_plan` |
+| `GET /conversations/{id}/session` | 마친 회기의 요약 화면 → `{"session": …, "plan": …}` |
+| `POST /conversations/{id}/session/summary/retry` | 실패한 회기 요약 다시 만들기 |
+
+- 마친 대화(`GET /conversations/{id}`의 `session`이 있음)에는 더 보낼 수 없다 → `409 session_completed`. 앱은 입력칸 대신 "요약 보기 / 새 대화"를 보여준다.
+- 알림만 받고 대화하지 않은 날은 회기에 들어가지 않는다. 그날 이미 회기를 마쳤으면 그날 알림은 보내지 않는다.
+- 회기 요약(`session_summary`, 사용자에게 보여줌)은 다음 대화의 기억용 요약(`summary`, §4)과 따로 저장한다. 상담 마치기를 누르면 둘 다 만든다.
+
+## 7. 웹 푸시 (상담 시간 알림)
+
+| 요청 | 설명 |
+|---|---|
+| `GET /push/public-key` | `{"public_key": "…"}` 브라우저 구독용 공개키. 서버에 VAPID 키가 없으면 `null` (알림 꺼짐). 인증 불필요 |
+| `POST /push/subscriptions` | 회원. `{"endpoint": "https://…", "keys": {"p256dh": "…", "auth": "…"}}` (`PushSubscription.toJSON()`) → 204. 같은 기기를 다른 계정이 등록하면 그 계정으로 옮긴다 |
+| `DELETE /push/subscriptions` | 회원. `{"endpoint": "…"}` → 204 |
+| `POST /push/test` | 회원. 내 기기로 테스트 알림 → `{"sent": 기기 수}`. 키가 없으면 `503 push_disabled` |
+
+알림 내용: `{"title", "body", "url", "tag"}` (JSON). 서비스 워커(`frontend/public/push-sw.js`)가 보여주고, 누르면 `url`(새 대화 `/`)로 연다. 서버는 30초마다 예약 시각이 된 계획을 확인해 보내며, 예약 시각에서 15분이 지나도록 못 보냈으면 그 회차는 건너뛴다. 같은 예약은 한 번만 보낸다 (`last_reminded_slot`). 브라우저가 버린 구독(404/410)은 지운다.
+
+## 8. 후속 범위 (명세 추후 확정)
 
 - 감정 체크인: `POST /checkins`, `GET /checkins`
 - ~~생각 기록(`/thought-records`)~~: 기록 목록·상세 화면을 두지 않기로 했다. 같은 용도의 회기 요약은 위 "회기 요약과 기억"처럼 서버 내부에만 저장한다.
 
 ---
 
-## 7. 합의가 필요한 항목 (`미정` 모음)
+## 9. 합의가 필요한 항목 (`미정` 모음)
 
 1. 가입 유도 기준 회기 수 (`guest_session_limit`, 기본 3)
 2. `/auth/register` 와 `/auth/upgrade` 를 하나로 합칠지
