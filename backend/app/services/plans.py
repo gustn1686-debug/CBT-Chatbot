@@ -159,6 +159,11 @@ async def summarize_plan_if_ready(plan_id: str) -> None:
         payload = [
             {"session_number": s.plan_session_no, "summary": s.session_summary} for s in sessions
         ]
+        if len(sessions) == 1:
+            plan.summary = sessions[0].session_summary
+            plan.summary_status = "done"
+            db.commit()
+            return
         plan.summary_status = "pending"
         plan.summary_requested_at = datetime.now(UTC)
         db.commit()

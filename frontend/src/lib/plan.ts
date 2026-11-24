@@ -1,7 +1,7 @@
 // 상담 계획 화면에서 같이 쓰는 값과 문구
 import type { PushState } from './push'
 
-export const SESSION_OPTIONS = [3, 5, 8, 10] as const
+export const SESSION_OPTIONS = [2, 3, 5, 8, 10] as const
 export const DEFAULT_SESSIONS = 5
 export const DAYS = ['월', '화', '수', '목', '금', '토', '일']
 export const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6]

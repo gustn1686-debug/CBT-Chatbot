@@ -135,26 +135,26 @@ describe('상담 계획', () => {
     )
   })
 
-  it('마지막 회기를 마치면 전체 회기 요약을 보여준다', async () => {
+  it.each([2, 3])('%i회기 계획을 마치면 전체 회기 요약을 보여준다', async (count) => {
     member()
     let user = renderApp('/plan/new')
-    await makePlan(user, '3회')
+    await makePlan(user, `${count}회`)
 
-    for (const text of ['발표가 걱정돼요', '친구와 다퉜어요', '잠을 못 잤어요']) {
+    for (const text of ['발표가 걱정돼요', '친구와 다퉜어요', '잠을 못 잤어요'].slice(0, count)) {
       document.body.innerHTML = ''
       user = renderApp('/')
       await screen.findByRole('link', { name: /회기 상담이에요/ })
       await talkAndFinish(user, text)
-      await screen.findByRole('list', { name: /3회 중 \d회 마침/ })
+      await screen.findByRole('list', { name: new RegExp(`${count}회 중 [0-9]+회 마침`) })
     }
     expect(await screen.findByRole('heading', { name: '마지막 회기까지 마쳤어요!' })).toBeInTheDocument()
 
     document.body.innerHTML = ''
     renderApp('/plan')
-    expect(await screen.findByRole('heading', { name: '3번의 상담을 모두 마쳤어요' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: `${count}번의 상담을 모두 마쳤어요` })).toBeInTheDocument()
     const summary = screen.getByRole('region', { name: '전체 회기 요약' })
-    expect(await within(summary).findByText('3번의 상담을 끝까지 마치셨어요.', {}, { timeout: 8000 })).toBeInTheDocument()
-    expect(within(screen.getByRole('navigation', { name: '마친 회기' })).getAllByRole('link')).toHaveLength(3)
+    expect(await within(summary).findByText(`${count}번의 상담을 끝까지 마치셨어요.`, {}, { timeout: 8000 })).toBeInTheDocument()
+    expect(within(screen.getByRole('navigation', { name: '마친 회기' })).getAllByRole('link')).toHaveLength(count)
     expect(screen.getByRole('link', { name: '새 상담 계획 세우기' })).toHaveAttribute('href', '/plan/new')
   }, 20000)
 

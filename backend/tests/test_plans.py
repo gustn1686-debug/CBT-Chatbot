@@ -156,6 +156,7 @@ def test_summary_failure_can_be_retried(client, monkeypatch):
     plan = client.get(f"{API}/plans/current", headers=h).json()["plan"]
     assert plan["sessions"][0]["summary_status"] == "done"
     assert plan["summary_status"] == "done"
+    assert plan["summary"] == plan["sessions"][0]["summary"]
 
 
 def test_session_summary_messages_alternate():
@@ -189,6 +190,7 @@ def test_runpod_summary_modes(monkeypatch):
             "runpod_api_key": "k",
             "runpod_poll_interval": 0,
             "session_summary_prompt": "두 줄로",
+            "plan_summary_prompt": "마친 회기를 돌아보세요.",
         }
     )
     monkeypatch.setattr(llm, "get_settings", lambda: settings)
@@ -214,9 +216,11 @@ def test_runpod_summary_modes(monkeypatch):
         "messages": msgs,
         "summary_prompt": "두 줄로",
     }
-    sessions = [{"session_number": 1, "summary": "s1"}]
+    sessions = [{"session_number": 1, "summary": "s1"}, {"session_number": 2, "summary": "s2"}]
     assert asyncio.run(llm.summarize_plan(sessions)) == "plan_summary 결과"
-    assert sent[-1]["input"] == {"mode": "plan_summary", "sessions": sessions}
+    assert sent[-1]["input"] == {
+        "mode": "plan_summary", "sessions": sessions, "summary_prompt": "마친 회기를 돌아보세요."
+    }
 
 
 # --- 예약 시각 -----------------------------------------------------------------
